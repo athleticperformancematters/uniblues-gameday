@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Game Day — Uni Blues</title>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#121826; --panel2:#1a2030; --line:#283246;
+    --ink:#eef2f8; --dim:#8693a8;
+    --field:#15325a; --field2:#1b4078;
+    --green:#37c46a; --amber:#f0b429; --red:#c0392b;
+    --gold:#ecc24e;
+    --L-FWD:#37c46a; --L-DEF:#c0392b; --L-MID:#f2cf3a; --L-WING:#36c0e6; --L-RUCK:#b06fd8;
+    --mono:ui-monospace,"SFMono-Regular","DejaVu Sans Mono",monospace;
+  }
+  @keyframes pulseRed{0%,100%{box-shadow:0 0 0 0 rgba(192,57,43,.55)}50%{box-shadow:0 0 0 4px rgba(192,57,43,0)}}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{font-size:clamp(11px, 1.7vh, 15px)}
+  body{background:var(--bg); color:var(--ink); height:100vh; overflow:hidden;
+    font-family:"DejaVu Sans","Segoe UI",system-ui,sans-serif; line-height:1.35;
+    display:flex; flex-direction:column; padding:8px; gap:8px;}
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{display:flex; align-items:center; gap:10px; flex-shrink:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:5px 12px;}
+  .tb-left{display:flex; align-items:center; gap:8px; flex:1; min-width:0}
+  .tb-right{display:flex; align-items:center; gap:8px; flex:1; min-width:0; justify-content:flex-end}
+  .clockbox{display:flex; align-items:baseline; gap:.45rem; font-family:var(--mono); flex:0 0 auto}
+  .clockbox .qtr{color:var(--gold); font-weight:800; font-size:1rem}
+  .clockbox .clk{font-size:1.7rem; font-weight:800; min-width:5rem; text-align:center}
+  .clockbox .clk.over{color:var(--amber)}
+  .clockbox .clk.brk{color:var(--gold); font-size:1.1rem; letter-spacing:.1em}
+  .startend{display:flex; gap:5px}
+  .startend button{font-size:.82rem; padding:.5rem .9rem}
+  .speedcycle{font-family:var(--mono); font-weight:800; font-size:.85rem; min-width:3.4rem;
+    background:var(--gold); color:#1a1306; border-color:var(--gold); padding:.5rem .6rem; text-align:center}
+  .rotpanel{display:flex; align-items:center; gap:10px; padding:3px 10px;
+    background:var(--panel2); border:1px solid var(--line); border-radius:9px}
+  .rotpanel .big{font-family:var(--mono); font-weight:800; font-size:1.5rem; color:var(--gold); line-height:1}
+  .rotpanel .lab{font-size:.52rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim)}
+  .rotpanel .qtrrot{font-family:var(--mono); font-weight:700; font-size:.95rem; color:var(--ink)}
+  .iconbtn{font-size:.72rem; padding:.5rem .7rem; white-space:nowrap}
+  button{font:inherit; font-size:.84rem; font-weight:700; cursor:pointer;
+    border:1px solid var(--line); border-radius:7px; padding:.55rem .95rem; background:var(--panel2); color:var(--ink);}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.32}
+  .btn-go{background:var(--gold); color:#1a1306; border-color:var(--gold)}
+  .btn-red{background:var(--red); color:#fff; border-color:var(--red)}
+  .btn-warn{background:transparent; color:#e0a83a; border-color:#7a5a1e}
+  .btn-warn:hover{background:#e0a83a; color:#1a1306; border-color:#e0a83a}
+
+  /* ---------- LAYOUT ---------- */
+  .layout{flex:1; min-height:0; display:grid; grid-template-columns:1fr 200px; gap:8px}
+  .col{background:var(--panel); border:1px solid var(--line); border-radius:10px; display:flex; flex-direction:column; min-height:0; overflow:hidden}
+  .col h3{font-size:.66rem; text-transform:uppercase; letter-spacing:.12em; color:var(--dim); font-weight:700; padding:8px 12px 5px; flex-shrink:0}
+  .rightcol{display:grid; grid-template-rows:1.4fr 1fr; gap:8px; min-height:0}
+  @media (orientation:portrait){
+    body{overflow:auto; height:auto}
+    .layout{grid-template-columns:1fr; height:auto}
+    .field{min-height:620px}
+    .rightcol{grid-template-rows:auto auto}
+    .log{max-height:240px}
+  }
+
+  /* log / ticker — own scroll region */
+  .log{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:0 10px 10px; font-family:var(--mono); font-size:.66rem; color:var(--dim)}
+  .log div{padding:.24rem 0; border-bottom:1px dotted #1b2331}
+  .log div:first-child{color:var(--ink); background:rgba(236,194,78,.1); border-radius:4px; padding:.24rem .3rem; margin:0 -.3rem .1rem}
+  .log .t{color:var(--ink)}
+  .log .late{color:var(--amber)} .log .rest{color:var(--green)} .log .move{color:#4fc3e6} .log .brk{color:var(--gold)}
+
+  /* field — real ground: back (top) / centre band / forward (bottom) */
+  .fieldcol{padding:6px; overflow:hidden}
+  .field{flex:1; min-height:0;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 7.7%, rgba(255,255,255,.035) 7.7% 15.4%),
+      radial-gradient(ellipse 120% 100% at 50% 50%, #8ec9a3, #7fbe95 60%, #6faf86);
+    border:2px solid rgba(255,255,255,.35); border-radius:24% / 14%;
+    position:relative; padding:8px 18px; overflow:hidden;}
+  /* centre circle */
+  .field::before{content:""; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:108px; height:108px; border:2px solid rgba(255,255,255,.3); border-radius:50%;}
+  /* centre line */
+  .field::after{content:""; position:absolute; top:50%; left:6%; right:6%; height:0;
+    border-top:2px dashed rgba(255,255,255,.22); transform:translateY(-50%);}
+  .fieldgrid{position:relative; z-index:2; display:grid; height:100%;
+    grid-template-rows:0.95fr 1.5fr 0.95fr; gap:4px; align-content:stretch}
+
+  .zone-back, .zone-fwd{display:flex; align-items:center; justify-content:center; min-height:0}
+  .grid2x3{display:grid; grid-template-columns:repeat(2,1fr); grid-auto-rows:minmax(0,1fr); gap:6px;
+    width:min(560px,92%); height:100%; max-height:100%}
+  .zone-centre{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:center; justify-content:center; min-height:0;
+    width:min(680px,92%); margin:0 auto}
+  .wingcell{display:flex; align-items:center; justify-content:center}
+  .wingcell .card{width:100%; min-height:78px}
+  .midcol{display:grid; grid-auto-rows:minmax(0,1fr); gap:5px; width:100%; height:100%; align-content:stretch;
+    padding:5px; border:2px dashed rgba(255,255,255,.28); border-radius:12px; background:rgba(255,255,255,.05)}
+
+  .field .card{max-height:100%}
+  .hintbar{flex-shrink:0; font-size:.72rem; color:var(--dim); padding:5px 4px 0; text-align:center; min-height:1.2rem}
+  .hintbar b{color:var(--gold)}
+
+  /* bench column */
+  .benchlist{flex:1; overflow-y:auto; padding:0 10px 12px; display:flex; flex-direction:column; gap:7px}
+  .benchlist .card{width:100%; flex:0 0 auto}
+  .benchlist .ctime{min-height:1.4rem; font-size:1.05rem}
+  .benchlist .crow1{min-height:1.1rem}
+  .benchlist .crow3{min-height:1.2rem}
+
+  /* ---------- CARDS ---------- */
+  .card{background:#f4f7fb; color:#10151f; border-radius:9px; overflow:hidden; cursor:pointer;
+    display:flex; flex-direction:column; min-height:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+    border:1px solid rgba(0,0,0,.25); border-left:7px solid #888;
+    box-shadow:0 2px 5px rgba(0,0,0,.4)}
+  .card > *{pointer-events:none}
+  .card:active{transform:scale(.97)}
+  .card.sel{outline:3px solid var(--gold); outline-offset:2px}
+  .card.L-FWD{border-left-color:#1f9d57} .card.L-DEF{border-left-color:#c0392b}
+  .card.L-MID{border-left-color:#d9a400} .card.L-WING{border-left-color:#1f86b8}
+  .card.L-RUCK{border-left-color:#8e44c8}
+  /* row1: name + pos */
+  .crow1{display:flex; justify-content:space-between; align-items:center; gap:5px; padding:0 7px; background:#dde4ee; flex-shrink:0; min-height:0}
+  .cname{font-weight:800; font-size:.95rem; letter-spacing:.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#0c1019}
+  .btag{flex:0 0 auto; font-family:var(--mono); font-weight:800; color:#ffd24a; background:#1d2733;
+    border:1.5px solid currentColor; box-sizing:border-box;
+    border-radius:4px; display:inline-flex; align-items:center; justify-content:center; line-height:1;
+    font-size:1rem; width:24px; height:24px}
+  .card.L-MID .btag{color:#f2d94a} .card.L-WING .btag{color:#5ab4e6}
+  .card.L-RUCK .btag{color:#b57ae0} .card.L-DEF .btag{color:#e8736a}
+  .card.L-FWD .btag{color:#4fd08a}
+  .cpos{font-family:var(--mono); font-size:.64rem; font-weight:800; color:#34404f; flex-shrink:0}
+  /* row2: stint since last rotation — primary, status-coloured */
+  .ctime{flex:1 1 0; position:relative; display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:1.15rem; font-weight:800; letter-spacing:.01em; padding:0; min-height:0; line-height:1}
+  .ctime.g{background:#e7eef6; color:#1b2a3a}
+  .ctime.a{background:var(--amber); color:#231903}
+  .ctime.r{background:var(--red); color:#fff; animation:pulseRed 1.3s ease-in-out infinite}
+  .ctgt{font-family:var(--mono); font-size:.54rem; font-weight:700; opacity:.6; margin-left:3px; align-self:center}
+  .card.notarget .ctgt{color:#c0392b; opacity:1; font-weight:900; font-size:1.1rem; margin-left:5px}
+  .card.notarget .ctime{box-shadow:inset 0 0 0 2px #c0392b}
+  .card.b.notarget .ctgt{display:inline}
+  .cbar{height:3px; background:#cdd6e2; flex-shrink:0}
+  .cbar > i{display:block; height:100%; width:0; background:#1f9d57; transition:width .25s linear}
+  .cbar.a > i{background:var(--amber)} .cbar.r > i{background:var(--red)}
+  /* row3: rotations + qtr-min + % */
+  .crow3{display:flex; align-items:stretch; border-top:1px solid #c2ccd9; background:#eef2f8; flex-shrink:0; min-height:0}
+  .crot{flex:0 0 auto; min-width:36px; display:flex; align-items:center; justify-content:center; gap:2px; padding:0 5px; background:#e2e8f1}
+  .crot b{font-family:var(--mono); font-size:.9rem; font-weight:800; color:#11151d; line-height:1.1}
+  .crot::before{content:"\21BB"; font-size:.6rem; color:#6b7888}
+  .cq{flex:1; display:flex; align-items:baseline; justify-content:center; gap:2px; padding:0 3px;
+    font-family:var(--mono); font-size:.78rem; font-weight:700; color:#283443; border-left:1px solid #cdd6e2}
+  .cq::after{font-size:.54rem; color:#7a8696; font-weight:600}
+  .cqt::after{content:"min"}
+  .cqp::after{content:"%"}
+  /* bench cards: resting tint but KEEP the line colour on the left bar */
+  .card.b{background:#eef3f9}
+  .card.b .crow1{background:#d4def0}
+  .card.b .ctime{background:#e2ebf7; color:#244a72}
+  .card.b .cbar{display:none}
+  .card.b .ctgt{display:none}
+  /* bench over-rested warning: rested longer than their on-field allowance */
+  .card.b.rested{border-left-color:#1f9d57}
+  .card.b.rested .ctime{background:#1f9d57; color:#fff; animation:pulseRest 1.6s ease-in-out infinite}
+  .card.b.rested .ctgt{display:inline; color:#eafff4; opacity:1; font-weight:800}
+  @keyframes pulseRest{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}}
+  /* vacant slot placeholder */
+  .card.vacant{background:rgba(255,255,255,.08); border:2px dashed rgba(255,255,255,.4); border-left:7px dashed rgba(255,255,255,.4);
+    box-shadow:none; align-items:center; justify-content:center; color:#eaf2ea; cursor:default}
+  .card.vacant .vlabel{font-family:var(--mono); font-size:.7rem; font-weight:700; text-align:center; padding:6px; opacity:.85}
+
+  /* ---------- EXPORT MODAL ---------- */
+  .modal-bg{position:fixed; inset:0; background:rgba(6,9,14,.72); display:none; align-items:center; justify-content:center; z-index:60; padding:18px}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--gold); border-radius:12px; padding:22px; max-width:620px; width:100%; max-height:88vh; overflow-y:auto}
+  .modal h3{font-size:1.05rem; margin-bottom:.5rem}
+  .modal p{font-size:.8rem; color:var(--dim); margin-bottom:.4rem}
+  .modal textarea{width:100%; height:300px; background:#0b0f17; color:var(--ink); border:1px solid var(--line); border-radius:6px; font-family:var(--mono); font-size:.66rem; padding:8px; margin:.6rem 0}
+  .modal .row{display:flex; gap:8px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="tb-left">
+    <div class="startend">
+      <button class="btn-go" id="primaryBtn" onclick="primary()">Start</button>
+      <button class="btn-red" id="endBtn" onclick="endQuarter()">End quarter</button>
+      <button class="btn-warn" onclick="resetGame()">Reset</button>
+    </div>
+    <button class="speedcycle" id="speedCycle" onclick="cycleSpeed()">1×</button>
+  </div>
+  <div class="clockbox"><span class="qtr" id="qtr">Q1</span><span class="clk" id="clk">00:00</span></div>
+  <div class="tb-right">
+    <div class="rotpanel">
+      <div><div class="big" id="rotTot">0</div><div class="lab">rotations</div></div>
+      <div><div class="qtrrot" id="rotQtr">Q1: 0</div><div class="lab">this qtr</div></div>
+    </div>
+    <button class="iconbtn" title="Export CSV" onclick="openExport()">⬇ CSV</button>
+    <button class="iconbtn" title="Upload team" onclick="document.getElementById('csvInput').click()">⬆ Team</button>
+    <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">
+  </div>
+</div>
+
+<div class="layout">
+  <div class="col fieldcol">
+    <div class="field"><div class="fieldgrid" id="fieldgrid"></div></div>
+    <div class="hintbar" id="hint"></div>
+  </div>
+  <div class="rightcol">
+    <div class="col benchcol"><h3>Interchange</h3><div class="benchlist" id="bench"></div></div>
+    <div class="col tickercol"><h3>Live ticker</h3><div class="log" id="log"></div></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="confirmBg">
+  <div class="modal" style="max-width:420px; text-align:center">
+    <h3 id="confirmTitle">End quarter?</h3>
+    <p id="confirmMsg" style="margin-bottom:1rem"></p>
+    <div class="row" style="justify-content:center">
+      <button class="btn-red" id="confirmYes">Yes, end quarter</button>
+      <button onclick="closeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="exportBg">
+  <div class="modal">
+    <h3>Game export · CSV</h3>
+    <p>Three tables: ledger  (quarter + game), rotation events (on/off times), and the log. Paste into Sheets/Excel.</p>
+    <textarea id="exportText" readonly></textarea>
+    <div class="row"><button class="btn-go" onclick="copyExport()">Copy</button><button onclick="closeExport()">Close</button></div>
+  </div>
+</div>
+
+<script>
+const LINE_OF={FB:'DEF',HB:'DEF',M:'MID',W:'WING',Ruckman:'RUCK',HF:'FWD',FF:'FWD',
+  B:'DEF',C:'MID',R:'MID',F:'FWD'};
+const LINECLASS={FWD:'L-FWD',DEF:'L-DEF',WING:'L-WING',RUCK:'L-RUCK',MID:'L-MID'};
+const LINE_DEFAULT_POS={BACK:'HB', FWD:'HF'};
+const POS_ALIAS={B:'FB',C:'M',R:'M',F:'FF'};
+const nf=code=>POS_ALIAS[code]||code;
+const LINE_RANK={DEF:0,RUCK:1,MID:2,WING:3,FWD:4};
+const QLEN=20;
+const STORAGE_KEY='gdm_autosave_v1';
+const BACKUP_KEY='gdm_autosave_backup';
+let lastSaveSec=-999;
+function saveState(){
+  const payload=JSON.stringify({savedAt:Date.now(), G});
+  try{
+    // roll the previous save into the backup slot before overwriting
+    const prev=localStorage.getItem(STORAGE_KEY);
+    if(prev) localStorage.setItem(BACKUP_KEY, prev);
+    localStorage.setItem(STORAGE_KEY, payload);
+  }
+  catch(e){ /* storage unavailable or full — fail silently, export remains the backstop */ }
+}
+// Only clears the primary slot. The backup survives so a mis-tap can't destroy the only copy.
+function clearSavedState(){ try{ localStorage.removeItem(STORAGE_KEY); }catch(e){} }
+function hasAnySave(){
+  try{ return !!(localStorage.getItem(STORAGE_KEY)||localStorage.getItem(BACKUP_KEY)); }catch(e){ return false; }
+}
+
+const CSV_TEXT=`Player Name,Playing,Interchange,Primary,Second Role,Build,Rotation Time
+AKOCH,Y,N,W,HB,Medium,20
+CLATWORTHY,N,N,Ruckman,FF,Key,20
+CONWAY,Y,N,FB,HB,Key,25
+COTTER,N,N,FF,HF,Small,25
+CURRAN,Y,N,HF,W,Medium,15
+DURYEA,Y,N,HB,HF,Medium,15
+EBERT,N,N,HB,W,Medium,15
+FURPHY_B,Y,N,W,HB,Medium,20
+FURPHY_C,Y,N,HF,W,Medium,20
+FURPHY_J,N,N,Ruckman,FF,Key,20
+GLEESON,Y,N,M,W,Medium,15
+GODDARD,Y,N,M,HF,Medium,15
+GRIMLEY,Y,N,FF,Ruckman,Key,20
+HAYES,Y,Y,HF,M,Small,20
+HAYTER,Y,Y,M,HF,Medium,15
+HEINE,Y,Y,FF,HF,Medium,20
+HILL,Y,Y,FB,HB,Key,20
+INGRAM,Y,N,Ruckman,FF,Key,20
+IRVING,Y,N,M,W,Small,15
+LACAVA,Y,N,HB,FB,Medium,20
+LORD,N,N,HB,M,Small,20
+LLOYD,Y,N,FB,HB,Key,25
+O'BRIEN,Y,N,FB,HB,Key,20
+O'SULLIVAN,N,N,HB,FB,Key,20
+O'SHEA,Y,N,FB,HB,Key,20
+SINNOTT,Y,N,FF,HF,Medium,20
+STEWART,Y,N,FF,HF,Key,25
+TOWNSON,Y,N,FF,HF,Medium,20`;
+
+function parseCSV(text){
+  const lines=text.replace(/^\uFEFF/,'').trim().split(/\r?\n/);
+  const head=lines[0].split(',').map(h=>h.trim());
+  return lines.slice(1).map(l=>{
+    const c=l.split(','); const o={}; head.forEach((h,i)=>o[h]=(c[i]||'').trim());
+    return {n:o['Player Name'], playing:o['Playing']==='Y', ic:o['Interchange']==='Y',
+      pos:nf(o['Primary']), flex:(o['Second Role']||'').split('/').map(s=>nf(s.trim())).filter(Boolean),
+      build:o['Build']||'Medium',
+      rotMin:(()=>{ const v=parseFloat(o['Rotation Time']??o['Rotation Time (min)']); return isFinite(v)&&v>0?v:null; })()};
+  }).filter(p=>p.playing && p.n);
+}
+let SQUAD=parseCSV(CSV_TEXT);
+
+let G, timer=null, cardEls={}, lastSec=-1;
+function init(){
+  G={qtr:1, sec:0, running:false, speed:1, phase:'live',
+     rotTot:0, qRot:{1:0,2:0,3:0,4:0}, sel:null, log:[], events:[], players:{},
+     qtimes:{1:{},2:{},3:{},4:{}}};
+  let si=0;
+  SQUAD.forEach(p=>{
+    G.players[p.n]={...p, curPos:p.pos, loc:p.ic?'bench':'on', slot:si++,
+      stintSec:0, onSecQ:0, restSecQ:0, rotQ:0, onSecG:0, restSecG:0, rotG:0,
+      qField:{1:0,2:0,3:0,4:0}, qRot:{1:0,2:0,3:0,4:0}};
+  });
+  logLine('brk', `Q1 · ${onF().length} on, bench: ${bn().map(p=>p.n).join(', ')}. Press Start.`);
+  const clk=document.getElementById('clk'); if(clk){ clk.textContent=mmss(0); clk.className='clk'; }
+  buildField(); paintAll(); renderLog(); renderControls();
+}
+const P=()=>Object.values(G.players);
+const onF=()=>P().filter(p=>p.loc==='on');
+const bn=()=>P().filter(p=>p.loc==='bench');
+function benchSorted(){ return bn().slice().sort((a,b)=>{
+  const la=(LINE_RANK[LINE_OF[a.pos]]??9), lb=(LINE_RANK[LINE_OF[b.pos]]??9);
+  if(la!==lb) return la-lb;
+  return a.restSecQ-b.restSecQ;   // most-rested last within a line
+}); }
+
+/* ---------- CLOCK ---------- */
+const SPEEDS=[1,1.25,2,4];
+function cycleSpeed(){
+  const i=SPEEDS.indexOf(G.speed);
+  G.speed = SPEEDS[(i+1)%SPEEDS.length] ?? 1;
+  renderSpeed();
+}
+function renderSpeed(){
+  const b=document.getElementById('speedCycle');
+  if(b) b.textContent = (G.speed===1.25?'1.25':G.speed)+'×';
+}
+function primary(){
+  if(G.phase==='break'){ startQuarter(); return; }
+  if(G.phase==='full') return;
+  G.running=!G.running;
+  if(G.running){ if(!G.qtimes[G.qtr].start) G.qtimes[G.qtr].start=Date.now(); startTimer(); }
+  else stopTimer();
+  renderControls(); saveState();
+}
+function startTimer(){ stopTimer(); let last=Date.now();
+  timer=setInterval(()=>{ const now=Date.now(); const d=(now-last)/1000*G.speed; last=now; advance(d); },250); }
+function stopTimer(){ if(timer){clearInterval(timer); timer=null;} }
+function advance(dSec){
+  if(dSec<=0) return; G.sec+=dSec;
+  onF().forEach(p=>{p.stintSec+=dSec; p.onSecQ+=dSec; p.onSecG+=dSec; p.qField[G.qtr]=(p.qField[G.qtr]||0)+dSec;});
+  bn().forEach(p=>{p.stintSec+=dSec; p.restSecQ+=dSec; p.restSecG+=dSec;});
+  tickLive();
+  if(G.sec-lastSaveSec>=5){ saveState(); lastSaveSec=G.sec; }
+}
+function askConfirm(title, msg, yesLabel, onYes){
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  const yes=document.getElementById('confirmYes');
+  yes.textContent = yesLabel;
+  yes.onclick=()=>{ closeConfirm(); onYes(); };
+  document.getElementById('confirmBg').classList.add('show');
+}
+function endQuarter(){
+  if(G.phase!=='live') return;
+  const final=G.qtr>=4;
+  askConfirm(
+    final?'Final siren?':('End Q'+G.qtr+'?'),
+    final?'This ends the game. Stint clocks reset.':'Everyone is marked rested for the break. Stint clocks reset.',
+    final?'Sound final siren':'Yes, end quarter',
+    doEndQuarter
+  );
+}
+function closeConfirm(){ document.getElementById('confirmBg').classList.remove('show'); }
+function autoBackupFile(label){
+  try{
+    const txt=buildExportText();
+    const d=new Date();
+    const stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+    const blob=new Blob([txt],{type:'text/tab-separated-values'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`UniBlues_${label}_${stamp}.tsv`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }catch(e){ /* download blocked — autosave + manual export remain */ }
+}
+function doEndQuarter(){
+  const final=G.qtr>=4;
+  G.qtimes[G.qtr].end=Date.now();
+  const label=final?'FullTime':('EndQ'+G.qtr);
+  G.running=false; stopTimer(); P().forEach(p=>{p.stintSec=0;});
+  if(final){ G.phase='full'; logLine('brk', `Full time · ${mmss(G.sec)} · ${G.rotTot} rotations total.`); }
+  else{ G.phase='break'; logLine('brk', `— end Q${G.qtr} (${mmss(G.sec)}) · break · stint clocks reset —`); }
+  paintAll(); renderLog(); renderControls(); saveState();
+  autoBackupFile(label);
+}
+function startQuarter(){
+  G.qtr++; G.sec=0; G.phase='live';
+  G.qtimes[G.qtr].start=Date.now();
+  P().forEach(p=>{p.onSecQ=0; p.restSecQ=0; p.rotQ=0; p.stintSec=0;});
+  logLine('brk', `— Q${G.qtr} start —`);
+  G.running=true; startTimer(); paintAll(); renderLog(); renderControls(); saveState();
+}
+
+/* ---------- SWAP PROCESS ----------
+   Tap one player to select. Tap a second:
+     on + bench  -> ROTATION (bench on for field player; both stints reset; +1 rot each)
+     on + on     -> POSITION SWAP (exchange positions; stints keep running)
+     bench+bench -> selection moves to the new one
+   Tap the selected player again to cancel. Selection is a class toggle only. */
+function clickCard(name){
+  const p=G.players[name];
+  if(!G.sel){ setSel(name); return; }
+  if(G.sel===name){ setSel(null); return; }
+  const a=G.players[G.sel], b=p;
+  if(a.loc==='on' && b.loc==='on'){ swapPositions(a,b); setSel(null); buildField(); paintAll(); renderLog(); saveState(); return; }
+  if(a.loc!==b.loc){ const on=a.loc==='on'?a:b, bench=a.loc==='on'?b:a; rotate(on,bench); setSel(null); buildField(); paintAll(); renderLog(); renderControls(); saveState(); return; }
+  setSel(name);
+}
+function setSel(name){ G.sel=name;
+  Object.keys(cardEls).forEach(n=>cardEls[n].root.classList.toggle('sel', n===name)); renderHint(); }
+function rotate(onP, benchP){
+  const vac=onP.curPos; let note='';
+  if(vac==='Ruckman' && !['FB','FF'].includes(benchP.pos)) note=' ⚠ ruck cover not FF/FB';
+  const t=onP.rotMin; const ratio=t?onP.stintSec/60/t:0; const late=ratio>=1;
+  onP.loc='bench'; onP.stintSec=0; onP.rotQ++; onP.rotG++; onP.qRot[G.qtr]=(onP.qRot[G.qtr]||0)+1;
+  G.events.push({player:onP.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"OFF", pos:vac});
+  benchP.loc='on'; benchP.curPos=vac; benchP.stintSec=0;
+  G.events.push({player:benchP.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"ON", pos:vac});
+  G.rotTot++; G.qRot[G.qtr]++;
+  setRotCounter();                       // live top-of-screen update
+  logLine(late?'late':'rest', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${onP.n} OFF (${vac}${late?', LATE '+ratio.toFixed(2):''}) · ${benchP.n} ON${note}`);
+}
+function swapPositions(a,b){
+  const pa=a.curPos, pb=b.curPos; a.curPos=pb; b.curPos=pa;
+  const sa=a.slot, sb=b.slot; a.slot=sb; b.slot=sa;
+  logLine('move', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${a.n} ↔ ${b.n} (${pa}↔${pb})`);
+}
+function logLine(cls, txt){ G.log.unshift({cls,txt}); }
+function clickVacant(linePos){
+  // Only meaningful if a BENCH player is selected — bring them on at this line.
+  if(!G.sel){ flashHint('Select a bench player first, then tap the vacant slot.'); return; }
+  const p=G.players[G.sel];
+  if(p.loc!=='bench'){ flashHint('Tap a bench player, then the vacant slot to send them on.'); return; }
+  // choose a concrete position for the line: prefer the player's primary if it fits the line, else line default
+  const want = LINE_DEFAULT_POS[linePos];
+  const pos = (LINE_OF[p.pos]===LINE_OF[want]) ? p.pos : want;
+  p.loc='on'; p.curPos=pos; p.stintSec=0;
+  G.events.push({player:p.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"ON", pos:pos});
+  setRotCounter();
+  logLine('rest', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${p.n} ON (${pos}, filled vacant ${linePos})`);
+  setSel(null); buildField(); paintAll(); renderLog(); renderControls(); saveState();
+}
+function flashHint(msg){ const h=document.getElementById('hint'); if(h){ h.innerHTML='<b>'+msg+'</b>'; } }
+
+/* ---------- HELPERS ---------- */
+function mmss(sec){const s=Math.floor(sec); return String(Math.floor(s / 60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function mins(sec){return Math.round(sec/60);}
+function pctQ(p){ const e=Math.max(G.sec,1); return Math.min(100,Math.round(p.onSecQ/e*100)); }
+function tmClass(p){const t=p.rotMin; if(!t) return 'g'; const r=p.stintSec/60/t; return r>=1?'r':r>=.7?'a':'g';}
+function lineCls(pos){return LINECLASS[LINE_OF[pos]||'MID'];}
+function buildCls(b){ b=(b||'Medium').toLowerCase(); return b==='key'?'bd-key':(b==='small'?'bd-small':'bd-med'); }
+function buildLetter(b){ b=(b||'Medium').toLowerCase(); return b==='key'?'K':(b==='small'?'S':'M'); }
+
+/* ---------- STRUCTURE  (rebuilt only on roster change) ---------- */
+function makeVacant(pos){
+  const root=document.createElement('div');
+  root.className='card vacant '+lineCls(pos);
+  root.innerHTML=`<div class="vlabel">+ ${pos}<br><span style="font-size:.6rem;opacity:.7">tap a bench player<br>then tap here</span></div>`;
+  root.dataset.vacantPos=pos;
+  root.onclick=()=>clickVacant(pos);
+  return root;
+}
+function makeCard(p,where){
+  const root=document.createElement('div');
+  root.className=('card '+(where==='bench'?'b ':'')+lineCls(p.curPos)+(G.sel===p.n?' sel':'')).trim();
+  root.innerHTML=
+    `<div class="crow1"><span class="cname">${p.n}</span>${(p.build||'').toLowerCase()==='key'?`<span class="btag ${buildCls(p.build)}">K</span>`:''}</div>`+
+    `<div class="ctime"><span class="ctval"></span><span class="ctgt"></span></div>`+
+    `<div class="cbar"><i></i></div>`+
+    `<div class="crow3"><div class="crot"><b></b></div>`+
+      `<div class="cq cqt"></div>`+
+      `<div class="cq cqp"></div></div>`;
+  root.onclick=()=>clickCard(p.n);
+  cardEls[p.n]={root,
+    time:root.querySelector('.ctime'), tval:root.querySelector('.ctval'), tgt:root.querySelector('.ctgt'),
+    bar:root.querySelector('.cbar'), barFill:root.querySelector('.cbar > i'),
+    rot:root.querySelector('.crot b'), qt:root.querySelector('.cqt'), qp:root.querySelector('.cqp')};
+  paintCard(p,where);
+  return root;
+}
+function fieldRows(){
+  const f=onF(); const by=pos=>f.filter(p=>p.curPos===pos).sort((a,b)=>a.slot-b.slot);
+  const ruck=by('Ruckman');
+  const mids=by('M');
+  return {
+    back:[...by('FB'),...by('HB')],
+    fwd:[...by('HF'),...by('FF')],
+    wingL:by('W').slice(0,1),
+    wingR:by('W').slice(1),
+    mid:[...ruck,...mids]
+  };
+}
+function fieldZonePadded(cards, cls, slots, vacantPos){
+  const z=document.createElement('div'); z.className=cls;
+  cards.forEach(p=>z.appendChild(makeCard(p,'field')));
+  for(let i=cards.length;i<slots;i++) z.appendChild(makeVacant(vacantPos));
+  return z;
+}
+function fieldZone(cards, cls){
+  const z=document.createElement('div'); z.className=cls;
+  cards.forEach(p=>z.appendChild(makeCard(p,'field')));
+  return z;
+}
+function buildField(){
+  cardEls={};
+  const {back,fwd,wingL,wingR,mid}=fieldRows();
+  const fg=document.getElementById('fieldgrid'); fg.innerHTML='';
+
+  // BACK row — always 6 cells (2 cols x 3 rows). Empty slots show a vacant placeholder.
+  const backRow=document.createElement('div'); backRow.className='zone-back';
+  backRow.appendChild(fieldZonePadded(back,'grid2x3',6,'BACK'));
+  fg.appendChild(backRow);
+
+  // CENTRE band — wing | mid column | wing
+  const mids=document.createElement('div'); mids.className='zone-centre';
+  mids.appendChild(fieldZone(wingL,'wingcell'));
+  mids.appendChild(fieldZone(mid,'midcol'));
+  mids.appendChild(fieldZone(wingR,'wingcell'));
+  fg.appendChild(mids);
+
+  // FORWARD row — always 6 cells (2 cols x 3 rows)
+  const fwdRow=document.createElement('div'); fwdRow.className='zone-fwd';
+  fwdRow.appendChild(fieldZonePadded(fwd,'grid2x3',6,'FWD'));
+  fg.appendChild(fwdRow);
+
+  const bench=document.getElementById('bench'); bench.innerHTML='';
+  benchSorted().forEach(p=>bench.appendChild(makeCard(p,'bench')));
+  renderHint();
+}
+
+/* ---------- IN-PLACE PAINT (every tick) ---------- */
+function paintCard(p,where){
+  const c=cardEls[p.n]; if(!c) return;
+  if(where===undefined) where=(p.loc==='bench'?'bench':'field');
+  c.tval.textContent=mmss(p.stintSec);
+  const t=p.rotMin;
+  const noTarget = !t;
+  c.root.classList.toggle('notarget', noTarget);
+  if(where==='bench'){
+    const overRested = t && (p.stintSec/60 >= t);
+    c.time.className='ctime';
+    c.root.classList.toggle('rested', !!overRested);
+    c.tgt.textContent = overRested ? '⚠ ready' : (noTarget ? '!' : '');
+    c.bar.className='cbar';
+    c.barFill.style.width='0%';
+  } else {
+    const cls=tmClass(p);
+    c.time.className='ctime '+cls;
+    c.tgt.textContent = noTarget ? '!' : ('/'+t+'m');
+    const ratio = t? Math.min(1, p.stintSec/60/t) : 0;
+    c.bar.className='cbar '+cls;
+    c.barFill.style.width=(ratio*100).toFixed(0)+'%';
+  }
+  c.rot.textContent=p.rotQ;
+  c.qt.textContent=mins(p.onSecQ);
+  c.qp.textContent=pctQ(p);
+}
+function paintAll(){
+  P().forEach(p=>paintCard(p));
+}
+function tickLive(){
+  const clk=document.getElementById('clk');
+  clk.textContent=mmss(G.sec);
+  clk.className='clk'+((G.sec>=QLEN*60 && G.phase==='live')?' over':'');
+  paintAll();
+}
+
+/* ---------- TOP COUNTER / CONTROLS ---------- */
+function setRotCounter(){
+  document.getElementById('rotTot').textContent=G.rotTot;
+  document.getElementById('rotQtr').textContent='Q'+G.qtr+': '+G.qRot[G.qtr];
+}
+function renderControls(){
+  const q=document.getElementById('qtr'), clk=document.getElementById('clk');
+  if(G.phase==='full'){ q.textContent='FT'; }
+  else if(G.phase==='break'){ q.textContent='Q'+G.qtr+' done'; clk.textContent='BREAK'; clk.className='clk brk'; }
+  else { q.textContent='Q'+G.qtr; }
+  renderSpeed();
+  setRotCounter();
+  const pb=document.getElementById('primaryBtn'), eb=document.getElementById('endBtn');
+  if(G.phase==='full'){ pb.textContent='Game over'; pb.disabled=true; eb.disabled=true; return; }
+  if(G.phase==='break'){ pb.textContent='Start Q'+(G.qtr+1); pb.disabled=false; eb.disabled=true; return; }
+  pb.disabled=false; eb.disabled=false;
+  pb.textContent = G.running ? 'Pause' : (G.sec>0?'Resume':'Start');
+  eb.textContent = G.qtr>=4 ? 'Final siren' : 'End quarter';
+}
+function renderHint(){
+  const h=document.getElementById('hint'); if(!h) return;
+  if(!G.sel){ h.innerHTML='Tap two on-field players to swap positions · tap one on-field then a bench player to rotate.'; return; }
+  const p=G.players[G.sel];
+  h.innerHTML = p.loc==='on'
+    ? `<b>${p.n}</b> (${p.curPos}) selected — tap a bench player to rotate on, or another on-field player to swap. Tap again to cancel.`
+    : `<b>${p.n}</b> selected — tap the on-field player to bring this player on for. Tap again to cancel.`;
+}
+function renderLog(){ const l=document.getElementById('log'); if(l) l.innerHTML=G.log.map(e=>`<div class="${e.cls}">${e.txt}</div>`).join(''); }
+
+/* ---------- EXPORT (CSV) ---------- */
+function hhmm(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }
+function secToMmss(s){ s=Math.round(s||0); const m=Math.floor(s/60),ss=s%60; return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
+function openExport(){
+  document.getElementById('exportText').value=buildExportText();
+  document.getElementById('exportBg').classList.add('show');
+}
+function buildExportText(){
+  const thru = G.phase==='full'?'FULL TIME':('Q'+G.qtr+' '+mmss(G.sec));
+  const now = new Date().toLocaleString('en-AU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  let out = `UNI BLUES — GAME DAY EXPORT\n`;
+  out += `Through: ${thru}\tGenerated: ${now}\n`;
+  out += `Total rotations:\t${G.rotTot}\tQ1:\t${G.qRot[1]}\tQ2:\t${G.qRot[2]}\tQ3:\t${G.qRot[3]}\tQ4:\t${G.qRot[4]}\n`;
+  const qt=t=>(G.qtimes[t]||{});
+  out += `Quarter wall times:\tQ1 ${hhmm(qt(1).start)}–${hhmm(qt(1).end)}\tQ2 ${hhmm(qt(2).start)}–${hhmm(qt(2).end)}\tQ3 ${hhmm(qt(3).start)}–${hhmm(qt(3).end)}\tQ4 ${hhmm(qt(4).start)}–${hhmm(qt(4).end)}\n`;
+
+  // SECTION 1: Player Summary
+  out += `\nSECTION 1 — PLAYER SUMMARY\n`;
+  out += `Player\t#\tPosition\tBuild\tField Time\tBench Time\tRotations\tGame %\n`;
+  const totalGameSec = ()=>{ let s=0; [1,2,3,4].forEach(q=>{ const t=G.qtimes[q]||{}; if(t.start&&t.end) s+=(t.end-t.start)/1000; }); return s||Math.max(G.sec*G.qtr,1); };
+  P().sort((a,b)=>b.onSecG-a.onSecG).forEach(p=>{
+    const pct=Math.min(100,Math.round(p.onSecG/totalGameSec()*100));
+    out += `${p.n}\t\t${p.curPos}\t${p.build}\t${secToMmss(p.onSecG)}\t${secToMmss(p.restSecG)}\t${p.rotG}\t${pct}%\n`;
+  });
+
+  // SECTION 2: Quarter Load
+  out += `\nSECTION 2 — QUARTER LOAD\n`;
+  out += `Player\tQ1 Time\tQ1 Rot\tQ2 Time\tQ2 Rot\tQ3 Time\tQ3 Rot\tQ4 Time\tQ4 Rot\tTotal Time\tTotal Rot\n`;
+  P().sort((a,b)=>b.onSecG-a.onSecG).forEach(p=>{
+    out += `${p.n}\t${secToMmss(p.qField[1])}\t${p.qRot[1]||0}\t${secToMmss(p.qField[2])}\t${p.qRot[2]||0}\t${secToMmss(p.qField[3])}\t${p.qRot[3]||0}\t${secToMmss(p.qField[4])}\t${p.qRot[4]||0}\t${secToMmss(p.onSecG)}\t${p.rotG}\n`;
+  });
+
+  // SECTION 3: Rotation Events
+  out += `\nSECTION 3 — ROTATION EVENTS\n`;
+  out += `Quarter\tGame Time\tWall Time\tPlayer Off\tPlayer On\tPosition\n`;
+  // pair OFF/ON events by matching consecutive same-time same-position events
+  const evts=G.events;
+  for(let i=0;i<evts.length;i++){
+    const e=evts[i];
+    if(e.dir==='OFF'){
+      const on=evts.find((x,j)=>j>i&&x.dir==='ON'&&x.q===e.q&&x.pos===e.pos&&Math.abs(x.sec-e.sec)<1);
+      out += `Q${e.q}\t${mmss(e.sec)}\t${hhmm(e.wall)}\t${e.player}\t${on?on.player:'—'}\t${e.pos}\n`;
+    }
+  }
+
+  return out;
+}
+function closeExport(){document.getElementById('exportBg').classList.remove('show');}
+function copyExport(){const t=document.getElementById('exportText'); t.select(); try{document.execCommand('copy');}catch(e){}}
+
+/* ---------- RESET ---------- */
+function resetGame(){
+  if(!gameInProgress()){
+    // nothing to lose — just reset silently to a clean Q1
+    stopTimer(); clearSavedState(); init(); return;
+  }
+  askConfirm(
+    'Reset game?',
+    'This clears all rotations, timers, quarter progress and the log, and returns to a fresh Q1 with the same team. This cannot be undone.',
+    'Yes, reset game',
+    ()=>{ stopTimer(); clearSavedState(); init(); }
+  );
+}
+
+/* ---------- UPLOAD NEW TEAM ---------- */
+function gameInProgress(){ return !!G && (G.running || G.sec>0 || G.rotTot>0 || G.qtr>1 || G.phase==='full'); }
+function loadCSV(text){
+  let squad; try{ squad=parseCSV(text); }catch(e){ alert('Could not read that CSV.'); return; }
+  if(!squad.length){ alert('No players found. Need a Player Name column and Playing=Y rows.'); return; }
+  stopTimer(); SQUAD=squad; clearSavedState(); init();
+  alert(`Loaded ${squad.length} players. New game ready — press Start.`);
+}
+document.getElementById('csvInput').addEventListener('change', function(ev){
+  const file=ev.target.files[0]; ev.target.value=''; if(!file) return;
+  const go=()=>{ const r=new FileReader(); r.onload=e=>loadCSV(e.target.result); r.onerror=()=>alert('Could not read that file.'); r.readAsText(file); };
+  if(gameInProgress()){
+    askConfirm('Upload new team?',
+      'This ENDS the game in progress and clears all rotations, timers and the log.',
+      'Yes, load new team', go);
+  } else { go(); }
+});
+
+function readSave(key){
+  let raw; try{ raw=localStorage.getItem(key); }catch(e){ return null; }
+  if(!raw) return null;
+  let saved; try{ saved=JSON.parse(raw); }catch(e){ return null; }
+  if(!saved || !saved.G || !saved.G.players) return null;
+  return saved;
+}
+function tryRestore(){
+  const saved = readSave(STORAGE_KEY) || readSave(BACKUP_KEY);
+  if(!saved) return false;
+  const g=saved.G;
+  const when=new Date(saved.savedAt).toLocaleString();
+  const desc=(g.phase==='full'?'Full time':'Q'+g.qtr+' '+mmss(g.sec))+', '+g.rotTot+' rotations logged';
+  // NOTE: declining does NOT delete the save — it is kept until explicitly overwritten.
+  if(!confirm(`Resume autosaved game from ${when}?\n${desc}\n\nCancel starts a fresh game. The saved game is KEPT and can be recovered.`)){
+    return false;
+  }
+  G=g; G.running=false; cardEls={};
+  buildField(); paintAll(); renderLog(); renderControls();
+  const clk=document.getElementById('clk');
+  clk.textContent=mmss(G.sec);
+  clk.className='clk'+((G.sec>=QLEN*60 && G.phase==='live')?' over':'');
+  return true;
+}
+window.addEventListener('beforeunload', function(e){
+  if(gameInProgress()){ e.preventDefault(); e.returnValue=''; }
+});
+if(!tryRestore()) init();
+</script>
+</body>
+</html>
