@@ -401,7 +401,7 @@ function fieldColumns(){
   const f=onF();
   const at=(...ps)=>f.filter(p=>ps.includes(p.curPos));
   // longest since-last-rotation sinks to the bottom of each sub-list
-  const srt=arr=>arr.slice().sort((a,b)=>a.stintSec-b.stintSec);
+  const srt=arr=>arr.slice().sort((a,b)=>b.stintSec-a.stintSec);  // longest on-field rises to the top
   const fwd=at('HF','FF'), back=at('FB','HB');
   return {
     fwdKey:  srt(fwd.filter(isKey)),
