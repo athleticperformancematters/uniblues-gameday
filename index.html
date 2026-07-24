@@ -85,14 +85,8 @@
   .card.L-RUCK .cname{background:#8e44c8}
   /* body: big since-rotation time (LEFT) · quarter & game shells (RIGHT) */
   .cbody{display:flex; flex:1 1 auto; min-height:0}
-  .cprimary{flex:0 0 41%; position:relative; display:flex; align-items:center; justify-content:center; padding:2px}
+  .cprimary{flex:0 0 41%; display:flex; align-items:center; justify-content:center; padding:2px; background:#e7eef6; color:#1b2a3a}
   .ctval{font-family:var(--mono); font-weight:800; font-size:2rem; line-height:1; letter-spacing:.01em}
-  .cprimary.g{background:#e7eef6; color:#1b2a3a}
-  .cprimary.a{background:var(--amber); color:#231903}
-  .cprimary.r{background:var(--red); color:#fff; animation:pulseRed 1.3s ease-in-out infinite}
-  .cbar{position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(0,0,0,.12)}
-  .cbar > i{display:block; height:100%; width:0; background:#1f9d57; transition:width .25s linear}
-  .cbar.a > i{background:#8a6a00} .cbar.r > i{background:#fff}
   /* RIGHT: two shells — total time + rotations, this quarter | this game */
   .cright{flex:1 1 0; display:grid; grid-template-columns:1fr 1fr; min-width:0}
   .shell{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:2px; min-width:0}
@@ -103,11 +97,7 @@
   /* bench cards: resting tint; name keeps its position colour */
   .card.b{background:#eef3f9}
   .card.b .cprimary{background:#e2ebf7; color:#244a72}
-  .card.b .cbar{display:none}
   .card.b .shell.shq{background:#e8eef6} .card.b .shell.shg{background:#e0e8f2}
-  /* bench over-rested: rested longer than their on-field allowance */
-  .card.b.rested .cprimary{background:#1f9d57; color:#fff; animation:pulseRest 1.6s ease-in-out infinite}
-  @keyframes pulseRest{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}}
   /* injured shelf — under the interchange; timers paused while here */
   .injhead{margin-top:10px; padding:5px 6px; border:1px dashed var(--line); border-radius:7px; flex-shrink:0;
     font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--dim);
@@ -438,7 +428,6 @@ function recover(p){
 function mmss(sec){const s=Math.floor(sec); return String(Math.floor(s / 60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
 function mins(sec){return Math.round(sec/60);}
 function pctQ(p){ const e=Math.max(G.sec,1); return Math.min(100,Math.round(p.onSecQ/e*100)); }
-function tmClass(p){const t=p.rotMin; if(!t) return 'g'; const r=p.stintSec/60/t; return r>=1?'r':r>=.7?'a':'g';}
 function lineCls(pos){return LINECLASS[LINE_OF[pos]||'MID'];}
 function buildCls(b){ b=(b||'Medium').toLowerCase(); return b==='key'?'bd-key':(b==='small'?'bd-small':'bd-med'); }
 function buildLetter(b){ b=(b||'Medium').toLowerCase(); return b==='key'?'K':(b==='small'?'S':'M'); }
@@ -454,16 +443,14 @@ function makeCard(p,where){
   root.innerHTML=
     `<div class="cname">${p.n}</div>`+
     `<div class="cbody">`+
-      `<div class="cprimary"><span class="ctval"></span><div class="cbar"><i></i></div></div>`+
+      `<div class="cprimary"><span class="ctval"></span></div>`+
       `<div class="cright">`+
         `<div class="shell shq"><span class="slab">QTR</span><span class="stime qtime"></span><span class="srot qrot"></span></div>`+
         `<div class="shell shg"><span class="slab">GAME</span><span class="stime gtime"></span><span class="srot grot"></span></div>`+
       `</div>`+
     `</div>`;
   root.onclick=()=>clickCard(p.n);
-  cardEls[p.n]={root,
-    prim:root.querySelector('.cprimary'), tval:root.querySelector('.ctval'),
-    bar:root.querySelector('.cbar'), barFill:root.querySelector('.cbar > i'),
+  cardEls[p.n]={root, tval:root.querySelector('.ctval'),
     qtime:root.querySelector('.qtime'), qrot:root.querySelector('.qrot'),
     gtime:root.querySelector('.gtime'), grot:root.querySelector('.grot')};
   paintCard(p,where);
@@ -528,23 +515,7 @@ function buildField(){
 /* ---------- IN-PLACE PAINT (every tick) ---------- */
 function paintCard(p,where){
   const c=cardEls[p.n]; if(!c) return;
-  if(where===undefined) where = p.loc==='on' ? 'field' : (p.loc==='injured'?'injured':'bench');
   c.tval.textContent=mmss(p.stintSec);   // since last rotation (field) / on bench / frozen (injured)
-  const t=p.rotMin;
-  if(where==='field'){
-    const cls=tmClass(p);
-    c.prim.className='cprimary '+cls;
-    const ratio = t? Math.min(1, p.stintSec/60/t) : 0;
-    c.bar.className='cbar '+cls;
-    c.barFill.style.width=(ratio*100).toFixed(0)+'%';
-    c.root.classList.remove('rested');
-  } else {
-    const overRested = where==='bench' && t && (p.stintSec/60 >= t);
-    c.prim.className='cprimary';
-    c.root.classList.toggle('rested', !!overRested);
-    c.bar.className='cbar';
-    c.barFill.style.width='0%';
-  }
   // this quarter (prominent) + this game (totals) — time · rotations
   c.qtime.textContent=mins(p.onSecQ)+'m';  c.qrot.textContent=p.rotQ+'↻';
   c.gtime.textContent=mins(p.onSecG)+'m';  c.grot.textContent=p.rotG+'↻';
