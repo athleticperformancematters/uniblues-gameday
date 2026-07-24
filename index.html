@@ -106,16 +106,22 @@
   .card.inj{opacity:.62; filter:grayscale(.5)}
   .card.inj .cname{background:#6b7480; color:#fff} .card.inj .cprimary{background:#3b4048; color:#e8bdb7}
   /* game totals table — under the injured shelf */
-  .gtotals{margin-top:12px; border-top:1px solid var(--line); padding-top:8px; flex-shrink:0; display:flex; flex-direction:column; min-height:0}
-  .gthead{font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--gold); padding:0 4px 5px; flex-shrink:0}
-  .gtbody{max-height:210px; overflow-y:auto; -webkit-overflow-scrolling:touch}
-  .gtrow{display:grid; grid-template-columns:1fr auto auto; gap:9px; align-items:baseline;
-    padding:3px 6px; border-bottom:1px solid rgba(255,255,255,.06); font-family:var(--mono)}
-  .gtn{color:var(--ink); font-weight:700; font-size:.74rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .gtm{color:var(--ink); font-weight:800; font-size:.82rem; text-align:right; min-width:2rem}
-  .gtm::after{content:"m"; font-size:.7em; color:var(--dim); font-weight:600}
-  .gtr{color:var(--dim); font-weight:800; font-size:.78rem; text-align:right; min-width:1.7rem}
-  .gtr::after{content:" ↻"; font-size:.85em}
+  .gtotals{margin-top:12px; border-top:2px solid var(--line); padding-top:8px; flex-shrink:0; display:flex; flex-direction:column; min-height:0}
+  .gthead{font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--gold); padding:0 6px 6px; flex-shrink:0}
+  .gtbody{max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    border:1px solid var(--line); border-radius:7px; background:rgba(0,0,0,.15)}
+  .gtrow{display:grid; grid-template-columns:minmax(0,1fr) 3rem 2.5rem; align-items:center; font-family:var(--mono)}
+  .gtrow > span{padding:5px 4px}
+  .gtbody .gtrow{border-bottom:1px solid rgba(255,255,255,.08)}
+  .gtbody .gtrow:last-child{border-bottom:none}
+  .gtbody .gtrow:nth-child(odd){background:rgba(255,255,255,.045)}
+  .gtbody .gtrow:nth-child(even){background:rgba(255,255,255,.11)}
+  .gthrow{position:sticky; top:0; z-index:1; background:var(--panel2); border-bottom:2px solid var(--gold)}
+  .gthrow > span{color:var(--gold); font-weight:800; font-size:.62rem; text-transform:uppercase; letter-spacing:.04em}
+  .gtn{color:var(--ink); font-weight:700; font-size:.94rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:8px}
+  .gtm{color:var(--ink); font-weight:800; font-size:1.1rem; text-align:center; border-left:1px solid rgba(255,255,255,.12)}
+  .gtr{color:var(--gold); font-weight:800; font-size:1.1rem; text-align:center; border-left:1px solid rgba(255,255,255,.12)}
+  .gthrow .gtm,.gthrow .gtr,.gthrow .gtn{border-left-color:transparent}
   /* club crest in the top bar */
   .logo{height:36px; width:auto; flex:0 0 auto; border-radius:4px; display:block}
 
@@ -522,8 +528,9 @@ function buildField(){
   ic.appendChild(istack);
   // game totals — every player, alphabetical, scrollable: minutes + rotations so far
   const gt=document.createElement('div'); gt.className='gtotals';
-  const gth=document.createElement('div'); gth.className='gthead'; gth.textContent='Game totals · min · ↻'; gt.appendChild(gth);
+  const gth=document.createElement('div'); gth.className='gthead'; gth.textContent='Game totals'; gt.appendChild(gth);
   const body=document.createElement('div'); body.className='gtbody'; body.id='gtbody';
+  body.innerHTML=`<div class="gtrow gthrow"><span class="gtn">Player</span><span class="gtm">Min</span><span class="gtr">↻</span></div>`;
   P().slice().sort((a,b)=>a.n.localeCompare(b.n)).forEach(p=>{
     const row=document.createElement('div'); row.className='gtrow';
     row.innerHTML=`<span class="gtn">${p.n}</span><span class="gtm"></span><span class="gtr"></span>`;
