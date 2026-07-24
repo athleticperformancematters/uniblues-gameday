@@ -229,15 +229,29 @@ SINNOTT,Y,N,FF,HF,Medium,20
 STEWART,Y,N,FF,HF,Key,25
 TOWNSON,Y,N,FF,HF,Medium,20`;
 
+// Position vocabulary: B/F/M/W/Ruckman/HF/FF/FB/HB, with an optional "KEY " prefix
+// (KEY B / KEY F) meaning a key-position player \u2014 the app's own way of flagging keys.
+function normPos(raw){
+  let s=(raw||'').trim().toUpperCase(); let key=false;
+  if(s.startsWith('KEY')){ key=true; s=s.replace(/^KEY[\s-]*/,''); }
+  const map={B:'FB', F:'FF', M:'M', W:'W', RUCKMAN:'Ruckman', C:'M', R:'M',
+             FB:'FB', HB:'HB', HF:'HF', FF:'FF'};
+  return {pos: map[s] || (s?nf(s):'M'), key};
+}
 function parseCSV(text){
   const lines=text.replace(/^\uFEFF/,'').trim().split(/\r?\n/);
   const head=lines[0].split(',').map(h=>h.trim());
   return lines.slice(1).map(l=>{
     const c=l.split(','); const o={}; head.forEach((h,i)=>o[h]=(c[i]||'').trim());
+    const {pos,key}=normPos(o['Primary']);
+    // rotation minutes: a labelled column if present, else the last positive number in the row
+    let rot=o['Rotation Time']??o['Rotation Time (min)']??o['Minutes']??'';
+    if(rot===''){ const nums=c.map(x=>parseFloat((x||'').trim())).filter(v=>isFinite(v)&&v>0); rot=nums.length?nums[nums.length-1]:''; }
+    const rv=parseFloat(rot);
     return {n:o['Player Name'], playing:o['Playing']==='Y', ic:o['Interchange']==='Y',
-      pos:nf(o['Primary']), flex:(o['Second Role']||'').split('/').map(s=>nf(s.trim())).filter(Boolean),
-      build:o['Build']||'Medium',
-      rotMin:(()=>{ const v=parseFloat(o['Rotation Time']??o['Rotation Time (min)']); return isFinite(v)&&v>0?v:null; })()};
+      pos, flex:(o['Second Role']?o['Second Role'].split('/').map(s=>normPos(s).pos):[]),
+      build:key?'Key':(o['Build']||'Medium'),
+      rotMin:(isFinite(rv)&&rv>0)?rv:null};
   }).filter(p=>p.playing && p.n);
 }
 let SQUAD=parseCSV(CSV_TEXT);
