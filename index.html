@@ -70,7 +70,7 @@
   .hintbar b{color:var(--gold)}
 
   /* ---------- CARDS ---------- */
-  .card{background:#f4f7fb; color:#10151f; border-radius:9px; overflow:hidden; cursor:pointer;
+  .card{background:#f4f7fb; color:#10151f; border-radius:9px; overflow:hidden; cursor:pointer; min-height:76px;
     display:flex; flex-direction:column; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
     border:1px solid rgba(0,0,0,.25); border-left:7px solid #888; box-shadow:0 2px 5px rgba(0,0,0,.4)}
   .card > *{pointer-events:none}
@@ -85,33 +85,35 @@
   .cpos{font-family:var(--mono); font-size:.66rem; font-weight:800; color:#34404f; flex-shrink:0}
   .card.L-FWD .cpos{color:#1f9d57} .card.L-DEF .cpos{color:#c0392b}
   .card.L-MID .cpos{color:#b98600} .card.L-WING .cpos{color:#1f86b8} .card.L-RUCK .cpos{color:#8e44c8}
-  /* row2: time since last rotation — primary, status-coloured */
-  .ctime{display:flex; align-items:baseline; justify-content:center; gap:3px;
-    font-family:var(--mono); font-weight:800; padding:3px 0; line-height:1}
-  .ctval{font-size:1.5rem}
-  .ctime.g{background:#e7eef6; color:#1b2a3a}
-  .ctime.a{background:var(--amber); color:#231903}
-  .ctime.r{background:var(--red); color:#fff; animation:pulseRed 1.3s ease-in-out infinite}
-  .ctgt{font-family:var(--mono); font-size:.58rem; font-weight:700; opacity:.6}
+  /* body: primary since-rotation (LEFT, big) + Q/G stats (RIGHT) — horizontal to use the width */
+  .cbody{display:flex; flex:1 1 auto; min-height:50px}
+  .cprimary{flex:0 0 43%; position:relative; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1px; padding:2px 2px 4px}
+  .ctval{font-family:var(--mono); font-weight:800; font-size:1.8rem; line-height:1; letter-spacing:.01em}
+  .ctgt{font-family:var(--mono); font-size:.6rem; font-weight:700; opacity:.6; line-height:1}
+  .cprimary.g{background:#e7eef6; color:#1b2a3a}
+  .cprimary.a{background:var(--amber); color:#231903}
+  .cprimary.r{background:var(--red); color:#fff; animation:pulseRed 1.3s ease-in-out infinite}
   .card.notarget .ctgt{color:#c0392b; opacity:1; font-weight:900}
-  .cbar{height:3px; background:#cdd6e2; flex-shrink:0}
+  .cbar{position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(0,0,0,.12)}
   .cbar > i{display:block; height:100%; width:0; background:#1f9d57; transition:width .25s linear}
-  .cbar.a > i{background:var(--amber)} .cbar.r > i{background:var(--red)}
-  /* rows 3-4: this-quarter (prominent) + this-game (totals) */
-  .stats{display:flex; flex-direction:column; background:#eef2f8; flex-shrink:0}
-  .statq,.statg{display:flex; align-items:center; justify-content:center; gap:7px; font-family:var(--mono); font-weight:700}
-  .statq{font-size:.8rem; color:#1b2a3a; padding:2px 0; border-top:1px solid #c2ccd9}
-  .statg{font-size:.66rem; color:#5a6675; padding:1px 0 2px}
-  .statq::before{content:"Q"; font-size:.56rem; color:#7a8696; font-weight:800}
-  .statg::before{content:"G"; font-size:.52rem; color:#8b96a4; font-weight:800}
-  /* bench cards: resting tint but KEEP the line colour (starting position) on the left bar */
+  .cbar.a > i{background:#8a6a00} .cbar.r > i{background:#fff}
+  .cstats{flex:1 1 0; display:flex; flex-direction:column; justify-content:center; gap:4px;
+    padding:2px 9px; background:#eef2f8}
+  .statq,.statg{display:flex; align-items:baseline; gap:9px; font-family:var(--mono); white-space:nowrap}
+  .statq{font-size:1.12rem; font-weight:800; color:#16212e}
+  .statg{font-size:.9rem; font-weight:700; color:#5a6675}
+  .statq::before{content:"Q"; font-size:.62rem; font-weight:800; opacity:.55; width:.75rem; flex:0 0 auto}
+  .statg::before{content:"G"; font-size:.58rem; font-weight:800; opacity:.55; width:.75rem; flex:0 0 auto}
+  .qtime,.gtime{min-width:2.7rem} .qrot,.grot{opacity:.9}
+  /* bench cards: resting tint, line colour (STARTING position) stays on the left bar */
   .card.b{background:#eef3f9}
   .card.b .crow1{background:#d4def0}
-  .card.b .ctime{background:#e2ebf7; color:#244a72}
+  .card.b .cprimary{background:#e2ebf7; color:#244a72}
   .card.b .cbar{display:none}
-  .card.b .ctgt{color:#244a72}
+  .card.b .cstats{background:#e8eef6}
   /* bench over-rested: rested longer than their on-field allowance */
-  .card.b.rested .ctime{background:#1f9d57; color:#fff; animation:pulseRest 1.6s ease-in-out infinite}
+  .card.b.rested .cprimary{background:#1f9d57; color:#fff; animation:pulseRest 1.6s ease-in-out infinite}
   .card.b.rested .ctgt{color:#eafff4; opacity:1; font-weight:800}
   @keyframes pulseRest{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}}
 
@@ -389,14 +391,16 @@ function makeCard(p,where){
   root.className=('card '+(where==='bench'?'b ':'')+line+(G.sel===p.n?' sel':'')).trim();
   root.innerHTML=
     `<div class="crow1"><span class="cname">${p.n}</span><span class="cpos">${pos}</span></div>`+
-    `<div class="ctime"><span class="ctval"></span><span class="ctgt"></span></div>`+
-    `<div class="cbar"><i></i></div>`+
-    `<div class="stats">`+
-      `<div class="statq"><span class="qtime"></span><span class="qrot"></span></div>`+
-      `<div class="statg"><span class="gtime"></span><span class="grot"></span></div></div>`;
+    `<div class="cbody">`+
+      `<div class="cprimary"><span class="ctval"></span><span class="ctgt"></span><div class="cbar"><i></i></div></div>`+
+      `<div class="cstats">`+
+        `<div class="statq"><span class="qtime"></span><span class="qrot"></span></div>`+
+        `<div class="statg"><span class="gtime"></span><span class="grot"></span></div>`+
+      `</div>`+
+    `</div>`;
   root.onclick=()=>clickCard(p.n);
   cardEls[p.n]={root,
-    time:root.querySelector('.ctime'), tval:root.querySelector('.ctval'), tgt:root.querySelector('.ctgt'),
+    prim:root.querySelector('.cprimary'), tval:root.querySelector('.ctval'), tgt:root.querySelector('.ctgt'),
     bar:root.querySelector('.cbar'), barFill:root.querySelector('.cbar > i'),
     qtime:root.querySelector('.qtime'), qrot:root.querySelector('.qrot'),
     gtime:root.querySelector('.gtime'), grot:root.querySelector('.grot')};
@@ -412,7 +416,7 @@ function fieldColumns(){
   return {
     fwdKey:  srt(fwd.filter(isKey)),
     fwdOther:srt(fwd.filter(p=>!isKey(p))),
-    ruckWing:srt(at('Ruckman','W')),
+    ruckWing:[...srt(at('Ruckman')), ...srt(at('W'))],  // ruck pinned to top, wings sorted below
     mids:    srt(at('M')),
     backKey: srt(back.filter(isKey)),
     backOther:srt(back.filter(p=>!isKey(p)))
@@ -436,11 +440,11 @@ function buildField(){
   const board=document.getElementById('board'); board.innerHTML='';
 
   board.appendChild(makeColumn('Forwards', [
-    {label:'Key', cards:c.fwdKey}, {label:'Forwards', cards:c.fwdOther}]));
-  board.appendChild(makeColumn('Ruck · Wing / Mids', [
-    {label:'Ruck · Wing', cards:c.ruckWing}, {label:'Mids', cards:c.mids}]));
+    {label:'Forwards', cards:c.fwdOther}, {label:'Key', cards:c.fwdKey}]));
+  board.appendChild(makeColumn('Mids / Ruck · Wing', [
+    {label:'Mids', cards:c.mids}, {label:'Ruck · Wing', cards:c.ruckWing}]));
   board.appendChild(makeColumn('Backs', [
-    {label:'Key', cards:c.backKey}, {label:'Backs', cards:c.backOther}]));
+    {label:'Backs', cards:c.backOther}, {label:'Key', cards:c.backKey}]));
 
   const ic=document.createElement('div'); ic.className='boardcol';
   const ih=document.createElement('div'); ih.className='colhead'; ih.textContent='Interchange'; ic.appendChild(ih);
@@ -461,14 +465,14 @@ function paintCard(p,where){
   c.root.classList.toggle('notarget', noTarget);
   if(where==='bench'){
     const overRested = t && (p.stintSec/60 >= t);
-    c.time.className='ctime';
+    c.prim.className='cprimary';
     c.root.classList.toggle('rested', !!overRested);
     c.tgt.textContent = overRested ? '⚠ ready' : (noTarget ? '!' : '');
     c.bar.className='cbar';
     c.barFill.style.width='0%';
   } else {
     const cls=tmClass(p);
-    c.time.className='ctime '+cls;
+    c.prim.className='cprimary '+cls;
     c.tgt.textContent = noTarget ? '!' : ('/'+t+'m');
     const ratio = t? Math.min(1, p.stintSec/60/t) : 0;
     c.bar.className='cbar '+cls;
