@@ -107,6 +107,14 @@
   /* bench over-rested: rested longer than their on-field allowance */
   .card.b.rested .cprimary{background:#1f9d57; color:#fff; animation:pulseRest 1.6s ease-in-out infinite}
   @keyframes pulseRest{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}}
+  /* injured shelf — under the interchange; timers paused while here */
+  .injhead{margin-top:10px; padding:5px 6px; border:1px dashed var(--line); border-radius:7px; flex-shrink:0;
+    font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--dim);
+    text-align:center; cursor:pointer; background:rgba(192,57,43,.07)}
+  .injhead:active{transform:scale(.98)}
+  .injstack{margin-top:6px}
+  .card.inj{opacity:.6; filter:grayscale(.55)}
+  .card.inj .cname{background:#c9ccd2} .card.inj .cprimary{background:#3b4048; color:#e8bdb7}
 
   /* ---------- EXPORT MODAL ---------- */
   .modal-bg{position:fixed; inset:0; background:rgba(6,9,14,.72); display:none; align-items:center; justify-content:center; z-index:60; padding:18px}
@@ -251,6 +259,7 @@ function init(){
 const P=()=>Object.values(G.players);
 const onF=()=>P().filter(p=>p.loc==='on');
 const bn=()=>P().filter(p=>p.loc==='bench');
+const inj=()=>P().filter(p=>p.loc==='injured');
 function benchSorted(){ return bn().slice().sort((a,b)=>{
   const la=(LINE_RANK[LINE_OF[a.pos]]??9), lb=(LINE_RANK[LINE_OF[b.pos]]??9);
   if(la!==lb) return la-lb;
@@ -334,6 +343,7 @@ function startQuarter(){
    Tap the selected player again to cancel. Selection is a class toggle only. */
 function clickCard(name){
   const p=G.players[name];
+  if(p.loc==='injured'){ recover(p); return; }   // tap an injured card to return them to the bench
   if(!G.sel){ setSel(name); return; }
   if(G.sel===name){ setSel(null); return; }
   const a=G.players[G.sel], b=p;
@@ -362,6 +372,21 @@ function swapPositions(a,b){
 }
 function logLine(cls, txt){ G.log.unshift({cls,txt}); }
 function flashHint(msg){ const h=document.getElementById('hint'); if(h){ h.innerHTML='<b>'+msg+'</b>'; } }
+/* ---------- INJURED SHELF (timers paused; excluded from advance) ---------- */
+function injureSelected(){
+  if(!G.sel){ flashHint('Select a player first, then tap the Injured bar to sideline them.'); return; }
+  const p=G.players[G.sel];
+  if(p.loc==='injured'){ setSel(null); return; }
+  if(p.loc==='on') G.events.push({player:p.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"OFF", pos:p.curPos});
+  p.loc='injured';   // stint/quarter/game clocks freeze — advance() only ticks on & bench
+  logLine('brk', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${p.n} sidelined (injured) — timers paused`);
+  setSel(null); buildField(); paintAll(); renderControls(); saveState();
+}
+function recover(p){
+  p.loc='bench'; p.stintSec=0;   // back to the interchange, stint clock restarts
+  logLine('rest', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${p.n} recovered → interchange (clock reset)`);
+  setSel(null); buildField(); paintAll(); renderControls(); saveState();
+}
 
 /* ---------- HELPERS ---------- */
 function mmss(sec){const s=Math.floor(sec); return String(Math.floor(s / 60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
@@ -375,10 +400,11 @@ function buildLetter(b){ b=(b||'Medium').toLowerCase(); return b==='key'?'K':(b=
 /* ---------- STRUCTURE  (rebuilt on roster/rotation change) ---------- */
 const isKey=p=>(p.build||'').toLowerCase()==='key';
 function makeCard(p,where){
-  // card colour = line of current position on field; line of STARTING position on bench
-  const line=lineCls(where==='bench'?p.pos:p.curPos);
+  // card colour = line of current position on field; line of STARTING position off it
+  const line=lineCls(where==='field'?p.curPos:p.pos);
+  const kind=where==='bench'?'b ':(where==='injured'?'b inj ':'');
   const root=document.createElement('div');
-  root.className=('card '+(where==='bench'?'b ':'')+line+(G.sel===p.n?' sel':'')).trim();
+  root.className=('card '+kind+line+(G.sel===p.n?' sel':'')).trim();
   root.innerHTML=
     `<div class="cleft">`+
       `<div class="cname">${p.n}</div>`+
@@ -441,6 +467,14 @@ function buildField(){
   const stack=document.createElement('div'); stack.className='stack';
   benchSorted().forEach(p=>stack.appendChild(makeCard(p,'bench')));
   ic.appendChild(stack);
+  // injured shelf — tap the bar to sideline the selected player (timers pause)
+  const injhead=document.createElement('div'); injhead.className='injhead';
+  injhead.textContent='＋ Injured · tap to sideline selected — timers paused';
+  injhead.onclick=injureSelected;
+  ic.appendChild(injhead);
+  const istack=document.createElement('div'); istack.className='stack injstack';
+  inj().forEach(p=>istack.appendChild(makeCard(p,'injured')));
+  ic.appendChild(istack);
   board.appendChild(ic);
   renderHint();
 }
@@ -448,21 +482,22 @@ function buildField(){
 /* ---------- IN-PLACE PAINT (every tick) ---------- */
 function paintCard(p,where){
   const c=cardEls[p.n]; if(!c) return;
-  if(where===undefined) where=(p.loc==='bench'?'bench':'field');
-  c.tval.textContent=mmss(p.stintSec);   // time since last rotation / time on bench
+  if(where===undefined) where = p.loc==='on' ? 'field' : (p.loc==='injured'?'injured':'bench');
+  c.tval.textContent=mmss(p.stintSec);   // since last rotation (field) / on bench / frozen (injured)
   const t=p.rotMin;
-  if(where==='bench'){
-    const overRested = t && (p.stintSec/60 >= t);
-    c.prim.className='cprimary';
-    c.root.classList.toggle('rested', !!overRested);
-    c.bar.className='cbar';
-    c.barFill.style.width='0%';
-  } else {
+  if(where==='field'){
     const cls=tmClass(p);
     c.prim.className='cprimary '+cls;
     const ratio = t? Math.min(1, p.stintSec/60/t) : 0;
     c.bar.className='cbar '+cls;
     c.barFill.style.width=(ratio*100).toFixed(0)+'%';
+    c.root.classList.remove('rested');
+  } else {
+    const overRested = where==='bench' && t && (p.stintSec/60 >= t);
+    c.prim.className='cprimary';
+    c.root.classList.toggle('rested', !!overRested);
+    c.bar.className='cbar';
+    c.barFill.style.width='0%';
   }
   // this quarter (prominent) + this game (totals) — time · rotations
   c.qtime.textContent=mins(p.onSecQ)+'m';  c.qrot.textContent=p.rotQ+'↻';
