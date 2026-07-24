@@ -88,16 +88,15 @@
   .cprimary{flex:0 0 41%; display:flex; align-items:center; justify-content:center; padding:2px; background:#e7eef6; color:#1b2a3a}
   .ctval{font-family:var(--mono); font-weight:800; font-size:2rem; line-height:1; letter-spacing:.01em}
   /* RIGHT: two shells — total time + rotations, this quarter | this game */
-  .cright{flex:1 1 0; display:grid; grid-template-columns:1fr 1fr; min-width:0}
-  .shell{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:2px; min-width:0}
-  .shell.shq{background:#eef2f8} .shell.shg{background:#e6ecf4; border-left:1px solid #ccd5e2}
+  .cright{flex:1 1 0; display:flex; min-width:0}
+  .shell{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:2px; min-width:0; background:#eef2f8}
   .slab{font-family:var(--mono); font-size:.58rem; font-weight:800; letter-spacing:.06em; color:#5a6a7d}
   .stime{font-family:var(--mono); font-weight:800; font-size:1.45rem; line-height:1; color:#101821}
   .srot{font-family:var(--mono); font-weight:800; font-size:1.1rem; line-height:1; color:#243244}
   /* bench cards: resting tint; name keeps its position colour */
   .card.b{background:#eef3f9}
   .card.b .cprimary{background:#e2ebf7; color:#244a72}
-  .card.b .shell.shq{background:#e8eef6} .card.b .shell.shg{background:#e0e8f2}
+  .card.b .shell{background:#e8eef6}
   /* injured shelf — under the interchange; timers paused while here */
   .injhead{margin-top:10px; padding:5px 6px; border:1px dashed var(--line); border-radius:7px; flex-shrink:0;
     font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--dim);
@@ -106,6 +105,19 @@
   .injstack{margin-top:6px}
   .card.inj{opacity:.62; filter:grayscale(.5)}
   .card.inj .cname{background:#6b7480; color:#fff} .card.inj .cprimary{background:#3b4048; color:#e8bdb7}
+  /* game totals table — under the injured shelf */
+  .gtotals{margin-top:12px; border-top:1px solid var(--line); padding-top:8px; flex-shrink:0; display:flex; flex-direction:column; min-height:0}
+  .gthead{font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--gold); padding:0 4px 5px; flex-shrink:0}
+  .gtbody{max-height:210px; overflow-y:auto; -webkit-overflow-scrolling:touch}
+  .gtrow{display:grid; grid-template-columns:1fr auto auto; gap:9px; align-items:baseline;
+    padding:3px 6px; border-bottom:1px solid rgba(255,255,255,.06); font-family:var(--mono)}
+  .gtn{color:var(--ink); font-weight:700; font-size:.74rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .gtm{color:var(--ink); font-weight:800; font-size:.82rem; text-align:right; min-width:2rem}
+  .gtm::after{content:"m"; font-size:.7em; color:var(--dim); font-weight:600}
+  .gtr{color:var(--dim); font-weight:800; font-size:.78rem; text-align:right; min-width:1.7rem}
+  .gtr::after{content:" ↻"; font-size:.85em}
+  /* club crest in the top bar */
+  .logo{height:36px; width:auto; flex:0 0 auto; border-radius:4px; display:block}
 
   /* ---------- EXPORT MODAL ---------- */
   .modal-bg{position:fixed; inset:0; background:rgba(6,9,14,.72); display:none; align-items:center; justify-content:center; z-index:60; padding:18px}
@@ -120,6 +132,7 @@
 <body>
 <div class="topbar">
   <div class="tb-left">
+    <img class="logo" src="logo.png" alt="Uni Blues" onerror="this.style.display='none'">
     <div class="startend">
       <button class="btn-go" id="primaryBtn" onclick="primary()">Start</button>
       <button class="btn-red" id="endBtn" onclick="endQuarter()">End quarter</button>
@@ -246,7 +259,7 @@ function parseCSV(text){
 }
 let SQUAD=parseCSV(CSV_TEXT);
 
-let G, timer=null, cardEls={}, lastSec=-1;
+let G, timer=null, cardEls={}, totalEls={}, lastSec=-1;
 function init(){
   G={qtr:1, sec:0, running:false, speed:1, phase:'live',
      rotTot:0, qRot:{1:0,2:0,3:0,4:0}, sel:null, injuring:null, log:[], events:[], players:{},
@@ -446,13 +459,11 @@ function makeCard(p,where){
       `<div class="cprimary"><span class="ctval"></span></div>`+
       `<div class="cright">`+
         `<div class="shell shq"><span class="slab">QTR</span><span class="stime qtime"></span><span class="srot qrot"></span></div>`+
-        `<div class="shell shg"><span class="slab">GAME</span><span class="stime gtime"></span><span class="srot grot"></span></div>`+
       `</div>`+
     `</div>`;
   root.onclick=()=>clickCard(p.n);
   cardEls[p.n]={root, tval:root.querySelector('.ctval'),
-    qtime:root.querySelector('.qtime'), qrot:root.querySelector('.qrot'),
-    gtime:root.querySelector('.gtime'), grot:root.querySelector('.grot')};
+    qtime:root.querySelector('.qtime'), qrot:root.querySelector('.qrot')};
   paintCard(p,where);
   return root;
 }
@@ -484,7 +495,8 @@ function makeColumn(head, sections){
   return col;
 }
 function buildField(){
-  cardEls={};
+  const prevTotScroll=(document.getElementById('gtbody')||{}).scrollTop||0;   // keep totals scroll across rebuilds
+  cardEls={}; totalEls={};
   const c=fieldColumns();
   const board=document.getElementById('board'); board.innerHTML='';
 
@@ -508,7 +520,20 @@ function buildField(){
   const istack=document.createElement('div'); istack.className='stack injstack';
   inj().forEach(p=>istack.appendChild(makeCard(p,'injured')));
   ic.appendChild(istack);
+  // game totals — every player, alphabetical, scrollable: minutes + rotations so far
+  const gt=document.createElement('div'); gt.className='gtotals';
+  const gth=document.createElement('div'); gth.className='gthead'; gth.textContent='Game totals · min · ↻'; gt.appendChild(gth);
+  const body=document.createElement('div'); body.className='gtbody'; body.id='gtbody';
+  P().slice().sort((a,b)=>a.n.localeCompare(b.n)).forEach(p=>{
+    const row=document.createElement('div'); row.className='gtrow';
+    row.innerHTML=`<span class="gtn">${p.n}</span><span class="gtm"></span><span class="gtr"></span>`;
+    totalEls[p.n]={m:row.querySelector('.gtm'), r:row.querySelector('.gtr')};
+    body.appendChild(row);
+  });
+  gt.appendChild(body); ic.appendChild(gt);
   board.appendChild(ic);
+  const gtb=document.getElementById('gtbody'); if(gtb) gtb.scrollTop=prevTotScroll;
+  paintTotals();
   renderHint();
 }
 
@@ -516,12 +541,14 @@ function buildField(){
 function paintCard(p,where){
   const c=cardEls[p.n]; if(!c) return;
   c.tval.textContent=mmss(p.stintSec);   // since last rotation (field) / on bench / frozen (injured)
-  // this quarter (prominent) + this game (totals) — time · rotations
-  c.qtime.textContent=mins(p.onSecQ)+'m';  c.qrot.textContent=p.rotQ+'↻';
-  c.gtime.textContent=mins(p.onSecG)+'m';  c.grot.textContent=p.rotG+'↻';
+  c.qtime.textContent=mins(p.onSecQ)+'m';  c.qrot.textContent=p.rotQ+'↻';  // this quarter
 }
 function paintAll(){
   P().forEach(p=>paintCard(p));
+  paintTotals();
+}
+function paintTotals(){
+  P().forEach(p=>{ const t=totalEls[p.n]; if(t){ t.m.textContent=mins(p.onSecG); t.r.textContent=p.rotG; } });
 }
 function tickLive(){
   const clk=document.getElementById('clk');
