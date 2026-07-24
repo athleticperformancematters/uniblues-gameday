@@ -50,125 +50,70 @@
   .btn-warn{background:transparent; color:#e0a83a; border-color:#7a5a1e}
   .btn-warn:hover{background:#e0a83a; color:#1a1306; border-color:#e0a83a}
 
-  /* ---------- LAYOUT ---------- */
-  .layout{flex:1; min-height:0; display:grid; grid-template-columns:1fr 200px; gap:8px}
-  .col{background:var(--panel); border:1px solid var(--line); border-radius:10px; display:flex; flex-direction:column; min-height:0; overflow:hidden}
-  .col h3{font-size:.66rem; text-transform:uppercase; letter-spacing:.12em; color:var(--dim); font-weight:700; padding:8px 12px 5px; flex-shrink:0}
-  .rightcol{display:grid; grid-template-rows:1.4fr 1fr; gap:8px; min-height:0}
+  /* ---------- BOARD: 4 columns — forwards · ruck-wing/mids · backs · interchange ---------- */
+  .board{flex:1; min-height:0; display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px}
+  .boardcol{background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    display:flex; flex-direction:column; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:6px 6px 10px}
+  .colhead{font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--gold);
+    font-weight:800; padding:2px 4px 6px; flex-shrink:0}
+  .sublabel{font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--dim);
+    font-weight:700; padding:2px 4px 4px; flex-shrink:0}
+  .stack{display:flex; flex-direction:column; gap:6px}
+  .sep{height:0; border-top:1px dashed var(--line); margin:9px 2px 3px}
   @media (orientation:portrait){
     body{overflow:auto; height:auto}
-    .layout{grid-template-columns:1fr; height:auto}
-    .field{min-height:620px}
-    .rightcol{grid-template-rows:auto auto}
-    .log{max-height:240px}
+    .board{grid-template-columns:1fr 1fr; height:auto}
+    .boardcol{overflow:visible}
   }
 
-  /* log / ticker — own scroll region */
-  .log{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
-    padding:0 10px 10px; font-family:var(--mono); font-size:.66rem; color:var(--dim)}
-  .log div{padding:.24rem 0; border-bottom:1px dotted #1b2331}
-  .log div:first-child{color:var(--ink); background:rgba(236,194,78,.1); border-radius:4px; padding:.24rem .3rem; margin:0 -.3rem .1rem}
-  .log .t{color:var(--ink)}
-  .log .late{color:var(--amber)} .log .rest{color:var(--green)} .log .move{color:#4fc3e6} .log .brk{color:var(--gold)}
-
-  /* field — real ground: back (top) / centre band / forward (bottom) */
-  .fieldcol{padding:6px; overflow:hidden}
-  .field{flex:1; min-height:0;
-    background:
-      repeating-linear-gradient(180deg, transparent 0 7.7%, rgba(255,255,255,.035) 7.7% 15.4%),
-      radial-gradient(ellipse 120% 100% at 50% 50%, #8ec9a3, #7fbe95 60%, #6faf86);
-    border:2px solid rgba(255,255,255,.35); border-radius:24% / 14%;
-    position:relative; padding:8px 18px; overflow:hidden;}
-  /* centre circle */
-  .field::before{content:""; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:108px; height:108px; border:2px solid rgba(255,255,255,.3); border-radius:50%;}
-  /* centre line */
-  .field::after{content:""; position:absolute; top:50%; left:6%; right:6%; height:0;
-    border-top:2px dashed rgba(255,255,255,.22); transform:translateY(-50%);}
-  .fieldgrid{position:relative; z-index:2; display:grid; height:100%;
-    grid-template-rows:0.95fr 1.5fr 0.95fr; gap:4px; align-content:stretch}
-
-  .zone-back, .zone-fwd{display:flex; align-items:center; justify-content:center; min-height:0}
-  .grid2x3{display:grid; grid-template-columns:repeat(2,1fr); grid-auto-rows:minmax(0,1fr); gap:6px;
-    width:min(560px,92%); height:100%; max-height:100%}
-  .zone-centre{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:center; justify-content:center; min-height:0;
-    width:min(680px,92%); margin:0 auto}
-  .wingcell{display:flex; align-items:center; justify-content:center}
-  .wingcell .card{width:100%; min-height:78px}
-  .midcol{display:grid; grid-auto-rows:minmax(0,1fr); gap:5px; width:100%; height:100%; align-content:stretch;
-    padding:5px; border:2px dashed rgba(255,255,255,.28); border-radius:12px; background:rgba(255,255,255,.05)}
-
-  .field .card{max-height:100%}
   .hintbar{flex-shrink:0; font-size:.72rem; color:var(--dim); padding:5px 4px 0; text-align:center; min-height:1.2rem}
   .hintbar b{color:var(--gold)}
 
-  /* bench column */
-  .benchlist{flex:1; overflow-y:auto; padding:0 10px 12px; display:flex; flex-direction:column; gap:7px}
-  .benchlist .card{width:100%; flex:0 0 auto}
-  .benchlist .ctime{min-height:1.4rem; font-size:1.05rem}
-  .benchlist .crow1{min-height:1.1rem}
-  .benchlist .crow3{min-height:1.2rem}
-
   /* ---------- CARDS ---------- */
   .card{background:#f4f7fb; color:#10151f; border-radius:9px; overflow:hidden; cursor:pointer;
-    display:flex; flex-direction:column; min-height:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
-    border:1px solid rgba(0,0,0,.25); border-left:7px solid #888;
-    box-shadow:0 2px 5px rgba(0,0,0,.4)}
+    display:flex; flex-direction:column; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+    border:1px solid rgba(0,0,0,.25); border-left:7px solid #888; box-shadow:0 2px 5px rgba(0,0,0,.4)}
   .card > *{pointer-events:none}
   .card:active{transform:scale(.97)}
   .card.sel{outline:3px solid var(--gold); outline-offset:2px}
   .card.L-FWD{border-left-color:#1f9d57} .card.L-DEF{border-left-color:#c0392b}
   .card.L-MID{border-left-color:#d9a400} .card.L-WING{border-left-color:#1f86b8}
   .card.L-RUCK{border-left-color:#8e44c8}
-  /* row1: name + pos */
-  .crow1{display:flex; justify-content:space-between; align-items:center; gap:5px; padding:0 7px; background:#dde4ee; flex-shrink:0; min-height:0}
-  .cname{font-weight:800; font-size:.95rem; letter-spacing:.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#0c1019}
-  .btag{flex:0 0 auto; font-family:var(--mono); font-weight:800; color:#ffd24a; background:#1d2733;
-    border:1.5px solid currentColor; box-sizing:border-box;
-    border-radius:4px; display:inline-flex; align-items:center; justify-content:center; line-height:1;
-    font-size:1rem; width:24px; height:24px}
-  .card.L-MID .btag{color:#f2d94a} .card.L-WING .btag{color:#5ab4e6}
-  .card.L-RUCK .btag{color:#b57ae0} .card.L-DEF .btag{color:#e8736a}
-  .card.L-FWD .btag{color:#4fd08a}
-  .cpos{font-family:var(--mono); font-size:.64rem; font-weight:800; color:#34404f; flex-shrink:0}
-  /* row2: stint since last rotation — primary, status-coloured */
-  .ctime{flex:1 1 0; position:relative; display:flex; align-items:center; justify-content:center;
-    font-family:var(--mono); font-size:1.15rem; font-weight:800; letter-spacing:.01em; padding:0; min-height:0; line-height:1}
+  /* row1: name + current position */
+  .crow1{display:flex; justify-content:space-between; align-items:center; gap:5px; padding:2px 7px; background:#dde4ee; flex-shrink:0}
+  .cname{font-weight:800; font-size:.9rem; letter-spacing:.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#0c1019}
+  .cpos{font-family:var(--mono); font-size:.66rem; font-weight:800; color:#34404f; flex-shrink:0}
+  .card.L-FWD .cpos{color:#1f9d57} .card.L-DEF .cpos{color:#c0392b}
+  .card.L-MID .cpos{color:#b98600} .card.L-WING .cpos{color:#1f86b8} .card.L-RUCK .cpos{color:#8e44c8}
+  /* row2: time since last rotation — primary, status-coloured */
+  .ctime{display:flex; align-items:baseline; justify-content:center; gap:3px;
+    font-family:var(--mono); font-weight:800; padding:3px 0; line-height:1}
+  .ctval{font-size:1.5rem}
   .ctime.g{background:#e7eef6; color:#1b2a3a}
   .ctime.a{background:var(--amber); color:#231903}
   .ctime.r{background:var(--red); color:#fff; animation:pulseRed 1.3s ease-in-out infinite}
-  .ctgt{font-family:var(--mono); font-size:.54rem; font-weight:700; opacity:.6; margin-left:3px; align-self:center}
-  .card.notarget .ctgt{color:#c0392b; opacity:1; font-weight:900; font-size:1.1rem; margin-left:5px}
-  .card.notarget .ctime{box-shadow:inset 0 0 0 2px #c0392b}
-  .card.b.notarget .ctgt{display:inline}
+  .ctgt{font-family:var(--mono); font-size:.58rem; font-weight:700; opacity:.6}
+  .card.notarget .ctgt{color:#c0392b; opacity:1; font-weight:900}
   .cbar{height:3px; background:#cdd6e2; flex-shrink:0}
   .cbar > i{display:block; height:100%; width:0; background:#1f9d57; transition:width .25s linear}
   .cbar.a > i{background:var(--amber)} .cbar.r > i{background:var(--red)}
-  /* row3: rotations + qtr-min + % */
-  .crow3{display:flex; align-items:stretch; border-top:1px solid #c2ccd9; background:#eef2f8; flex-shrink:0; min-height:0}
-  .crot{flex:0 0 auto; min-width:36px; display:flex; align-items:center; justify-content:center; gap:2px; padding:0 5px; background:#e2e8f1}
-  .crot b{font-family:var(--mono); font-size:.9rem; font-weight:800; color:#11151d; line-height:1.1}
-  .crot::before{content:"\21BB"; font-size:.6rem; color:#6b7888}
-  .cq{flex:1; display:flex; align-items:baseline; justify-content:center; gap:2px; padding:0 3px;
-    font-family:var(--mono); font-size:.78rem; font-weight:700; color:#283443; border-left:1px solid #cdd6e2}
-  .cq::after{font-size:.54rem; color:#7a8696; font-weight:600}
-  .cqt::after{content:"min"}
-  .cqp::after{content:"%"}
-  /* bench cards: resting tint but KEEP the line colour on the left bar */
+  /* rows 3-4: this-quarter (prominent) + this-game (totals) */
+  .stats{display:flex; flex-direction:column; background:#eef2f8; flex-shrink:0}
+  .statq,.statg{display:flex; align-items:center; justify-content:center; gap:7px; font-family:var(--mono); font-weight:700}
+  .statq{font-size:.8rem; color:#1b2a3a; padding:2px 0; border-top:1px solid #c2ccd9}
+  .statg{font-size:.66rem; color:#5a6675; padding:1px 0 2px}
+  .statq::before{content:"Q"; font-size:.56rem; color:#7a8696; font-weight:800}
+  .statg::before{content:"G"; font-size:.52rem; color:#8b96a4; font-weight:800}
+  /* bench cards: resting tint but KEEP the line colour (starting position) on the left bar */
   .card.b{background:#eef3f9}
   .card.b .crow1{background:#d4def0}
   .card.b .ctime{background:#e2ebf7; color:#244a72}
   .card.b .cbar{display:none}
-  .card.b .ctgt{display:none}
-  /* bench over-rested warning: rested longer than their on-field allowance */
-  .card.b.rested{border-left-color:#1f9d57}
+  .card.b .ctgt{color:#244a72}
+  /* bench over-rested: rested longer than their on-field allowance */
   .card.b.rested .ctime{background:#1f9d57; color:#fff; animation:pulseRest 1.6s ease-in-out infinite}
-  .card.b.rested .ctgt{display:inline; color:#eafff4; opacity:1; font-weight:800}
+  .card.b.rested .ctgt{color:#eafff4; opacity:1; font-weight:800}
   @keyframes pulseRest{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}}
-  /* vacant slot placeholder */
-  .card.vacant{background:rgba(255,255,255,.08); border:2px dashed rgba(255,255,255,.4); border-left:7px dashed rgba(255,255,255,.4);
-    box-shadow:none; align-items:center; justify-content:center; color:#eaf2ea; cursor:default}
-  .card.vacant .vlabel{font-family:var(--mono); font-size:.7rem; font-weight:700; text-align:center; padding:6px; opacity:.85}
 
   /* ---------- EXPORT MODAL ---------- */
   .modal-bg{position:fixed; inset:0; background:rgba(6,9,14,.72); display:none; align-items:center; justify-content:center; z-index:60; padding:18px}
@@ -188,7 +133,6 @@
       <button class="btn-red" id="endBtn" onclick="endQuarter()">End quarter</button>
       <button class="btn-warn" onclick="resetGame()">Reset</button>
     </div>
-    <button class="speedcycle" id="speedCycle" onclick="cycleSpeed()">1×</button>
   </div>
   <div class="clockbox"><span class="qtr" id="qtr">Q1</span><span class="clk" id="clk">00:00</span></div>
   <div class="tb-right">
@@ -202,16 +146,8 @@
   </div>
 </div>
 
-<div class="layout">
-  <div class="col fieldcol">
-    <div class="field"><div class="fieldgrid" id="fieldgrid"></div></div>
-    <div class="hintbar" id="hint"></div>
-  </div>
-  <div class="rightcol">
-    <div class="col benchcol"><h3>Interchange</h3><div class="benchlist" id="bench"></div></div>
-    <div class="col tickercol"><h3>Live ticker</h3><div class="log" id="log"></div></div>
-  </div>
-</div>
+<div class="board" id="board"></div>
+<div class="hintbar" id="hint"></div>
 
 <div class="modal-bg" id="confirmBg">
   <div class="modal" style="max-width:420px; text-align:center">
@@ -325,20 +261,10 @@ const bn=()=>P().filter(p=>p.loc==='bench');
 function benchSorted(){ return bn().slice().sort((a,b)=>{
   const la=(LINE_RANK[LINE_OF[a.pos]]??9), lb=(LINE_RANK[LINE_OF[b.pos]]??9);
   if(la!==lb) return la-lb;
-  return a.restSecQ-b.restSecQ;   // most-rested last within a line
+  return a.stintSec-b.stintSec;   // longest on bench sinks to the bottom within a line
 }); }
 
 /* ---------- CLOCK ---------- */
-const SPEEDS=[1,1.25,2,4];
-function cycleSpeed(){
-  const i=SPEEDS.indexOf(G.speed);
-  G.speed = SPEEDS[(i+1)%SPEEDS.length] ?? 1;
-  renderSpeed();
-}
-function renderSpeed(){
-  const b=document.getElementById('speedCycle');
-  if(b) b.textContent = (G.speed===1.25?'1.25':G.speed)+'×';
-}
 function primary(){
   if(G.phase==='break'){ startQuarter(); return; }
   if(G.phase==='full') return;
@@ -442,20 +368,6 @@ function swapPositions(a,b){
   logLine('move', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${a.n} ↔ ${b.n} (${pa}↔${pb})`);
 }
 function logLine(cls, txt){ G.log.unshift({cls,txt}); }
-function clickVacant(linePos){
-  // Only meaningful if a BENCH player is selected — bring them on at this line.
-  if(!G.sel){ flashHint('Select a bench player first, then tap the vacant slot.'); return; }
-  const p=G.players[G.sel];
-  if(p.loc!=='bench'){ flashHint('Tap a bench player, then the vacant slot to send them on.'); return; }
-  // choose a concrete position for the line: prefer the player's primary if it fits the line, else line default
-  const want = LINE_DEFAULT_POS[linePos];
-  const pos = (LINE_OF[p.pos]===LINE_OF[want]) ? p.pos : want;
-  p.loc='on'; p.curPos=pos; p.stintSec=0;
-  G.events.push({player:p.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"ON", pos:pos});
-  setRotCounter();
-  logLine('rest', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${p.n} ON (${pos}, filled vacant ${linePos})`);
-  setSel(null); buildField(); paintAll(); renderLog(); renderControls(); saveState();
-}
 function flashHint(msg){ const h=document.getElementById('hint'); if(h){ h.innerHTML='<b>'+msg+'</b>'; } }
 
 /* ---------- HELPERS ---------- */
@@ -467,80 +379,75 @@ function lineCls(pos){return LINECLASS[LINE_OF[pos]||'MID'];}
 function buildCls(b){ b=(b||'Medium').toLowerCase(); return b==='key'?'bd-key':(b==='small'?'bd-small':'bd-med'); }
 function buildLetter(b){ b=(b||'Medium').toLowerCase(); return b==='key'?'K':(b==='small'?'S':'M'); }
 
-/* ---------- STRUCTURE  (rebuilt only on roster change) ---------- */
-function makeVacant(pos){
-  const root=document.createElement('div');
-  root.className='card vacant '+lineCls(pos);
-  root.innerHTML=`<div class="vlabel">+ ${pos}<br><span style="font-size:.6rem;opacity:.7">tap a bench player<br>then tap here</span></div>`;
-  root.dataset.vacantPos=pos;
-  root.onclick=()=>clickVacant(pos);
-  return root;
-}
+/* ---------- STRUCTURE  (rebuilt on roster/rotation change) ---------- */
+const isKey=p=>(p.build||'').toLowerCase()==='key';
 function makeCard(p,where){
+  // card colour = line of current position on field; line of STARTING position on bench
+  const line=lineCls(where==='bench'?p.pos:p.curPos);
+  const pos =(where==='bench'?p.pos:p.curPos);
   const root=document.createElement('div');
-  root.className=('card '+(where==='bench'?'b ':'')+lineCls(p.curPos)+(G.sel===p.n?' sel':'')).trim();
+  root.className=('card '+(where==='bench'?'b ':'')+line+(G.sel===p.n?' sel':'')).trim();
   root.innerHTML=
-    `<div class="crow1"><span class="cname">${p.n}</span>${(p.build||'').toLowerCase()==='key'?`<span class="btag ${buildCls(p.build)}">K</span>`:''}</div>`+
+    `<div class="crow1"><span class="cname">${p.n}</span><span class="cpos">${pos}</span></div>`+
     `<div class="ctime"><span class="ctval"></span><span class="ctgt"></span></div>`+
     `<div class="cbar"><i></i></div>`+
-    `<div class="crow3"><div class="crot"><b></b></div>`+
-      `<div class="cq cqt"></div>`+
-      `<div class="cq cqp"></div></div>`;
+    `<div class="stats">`+
+      `<div class="statq"><span class="qtime"></span><span class="qrot"></span></div>`+
+      `<div class="statg"><span class="gtime"></span><span class="grot"></span></div></div>`;
   root.onclick=()=>clickCard(p.n);
   cardEls[p.n]={root,
     time:root.querySelector('.ctime'), tval:root.querySelector('.ctval'), tgt:root.querySelector('.ctgt'),
     bar:root.querySelector('.cbar'), barFill:root.querySelector('.cbar > i'),
-    rot:root.querySelector('.crot b'), qt:root.querySelector('.cqt'), qp:root.querySelector('.cqp')};
+    qtime:root.querySelector('.qtime'), qrot:root.querySelector('.qrot'),
+    gtime:root.querySelector('.gtime'), grot:root.querySelector('.grot')};
   paintCard(p,where);
   return root;
 }
-function fieldRows(){
-  const f=onF(); const by=pos=>f.filter(p=>p.curPos===pos).sort((a,b)=>a.slot-b.slot);
-  const ruck=by('Ruckman');
-  const mids=by('M');
+function fieldColumns(){
+  const f=onF();
+  const at=(...ps)=>f.filter(p=>ps.includes(p.curPos));
+  // longest since-last-rotation sinks to the bottom of each sub-list
+  const srt=arr=>arr.slice().sort((a,b)=>a.stintSec-b.stintSec);
+  const fwd=at('HF','FF'), back=at('FB','HB');
   return {
-    back:[...by('FB'),...by('HB')],
-    fwd:[...by('HF'),...by('FF')],
-    wingL:by('W').slice(0,1),
-    wingR:by('W').slice(1),
-    mid:[...ruck,...mids]
+    fwdKey:  srt(fwd.filter(isKey)),
+    fwdOther:srt(fwd.filter(p=>!isKey(p))),
+    ruckWing:srt(at('Ruckman','W')),
+    mids:    srt(at('M')),
+    backKey: srt(back.filter(isKey)),
+    backOther:srt(back.filter(p=>!isKey(p)))
   };
 }
-function fieldZonePadded(cards, cls, slots, vacantPos){
-  const z=document.createElement('div'); z.className=cls;
-  cards.forEach(p=>z.appendChild(makeCard(p,'field')));
-  for(let i=cards.length;i<slots;i++) z.appendChild(makeVacant(vacantPos));
-  return z;
-}
-function fieldZone(cards, cls){
-  const z=document.createElement('div'); z.className=cls;
-  cards.forEach(p=>z.appendChild(makeCard(p,'field')));
-  return z;
+function makeColumn(head, sections){
+  const col=document.createElement('div'); col.className='boardcol';
+  const h=document.createElement('div'); h.className='colhead'; h.textContent=head; col.appendChild(h);
+  sections.forEach((s,i)=>{
+    if(i>0){ const sep=document.createElement('div'); sep.className='sep'; col.appendChild(sep); }
+    const lab=document.createElement('div'); lab.className='sublabel'; lab.textContent=s.label; col.appendChild(lab);
+    const stack=document.createElement('div'); stack.className='stack';
+    s.cards.forEach(p=>stack.appendChild(makeCard(p,'field')));
+    col.appendChild(stack);
+  });
+  return col;
 }
 function buildField(){
   cardEls={};
-  const {back,fwd,wingL,wingR,mid}=fieldRows();
-  const fg=document.getElementById('fieldgrid'); fg.innerHTML='';
+  const c=fieldColumns();
+  const board=document.getElementById('board'); board.innerHTML='';
 
-  // BACK row — always 6 cells (2 cols x 3 rows). Empty slots show a vacant placeholder.
-  const backRow=document.createElement('div'); backRow.className='zone-back';
-  backRow.appendChild(fieldZonePadded(back,'grid2x3',6,'BACK'));
-  fg.appendChild(backRow);
+  board.appendChild(makeColumn('Forwards', [
+    {label:'Key', cards:c.fwdKey}, {label:'Forwards', cards:c.fwdOther}]));
+  board.appendChild(makeColumn('Ruck · Wing / Mids', [
+    {label:'Ruck · Wing', cards:c.ruckWing}, {label:'Mids', cards:c.mids}]));
+  board.appendChild(makeColumn('Backs', [
+    {label:'Key', cards:c.backKey}, {label:'Backs', cards:c.backOther}]));
 
-  // CENTRE band — wing | mid column | wing
-  const mids=document.createElement('div'); mids.className='zone-centre';
-  mids.appendChild(fieldZone(wingL,'wingcell'));
-  mids.appendChild(fieldZone(mid,'midcol'));
-  mids.appendChild(fieldZone(wingR,'wingcell'));
-  fg.appendChild(mids);
-
-  // FORWARD row — always 6 cells (2 cols x 3 rows)
-  const fwdRow=document.createElement('div'); fwdRow.className='zone-fwd';
-  fwdRow.appendChild(fieldZonePadded(fwd,'grid2x3',6,'FWD'));
-  fg.appendChild(fwdRow);
-
-  const bench=document.getElementById('bench'); bench.innerHTML='';
-  benchSorted().forEach(p=>bench.appendChild(makeCard(p,'bench')));
+  const ic=document.createElement('div'); ic.className='boardcol';
+  const ih=document.createElement('div'); ih.className='colhead'; ih.textContent='Interchange'; ic.appendChild(ih);
+  const stack=document.createElement('div'); stack.className='stack';
+  benchSorted().forEach(p=>stack.appendChild(makeCard(p,'bench')));
+  ic.appendChild(stack);
+  board.appendChild(ic);
   renderHint();
 }
 
@@ -548,9 +455,9 @@ function buildField(){
 function paintCard(p,where){
   const c=cardEls[p.n]; if(!c) return;
   if(where===undefined) where=(p.loc==='bench'?'bench':'field');
-  c.tval.textContent=mmss(p.stintSec);
+  c.tval.textContent=mmss(p.stintSec);   // time since last rotation / time on bench
   const t=p.rotMin;
-  const noTarget = !t;
+  const noTarget=!t;
   c.root.classList.toggle('notarget', noTarget);
   if(where==='bench'){
     const overRested = t && (p.stintSec/60 >= t);
@@ -567,9 +474,9 @@ function paintCard(p,where){
     c.bar.className='cbar '+cls;
     c.barFill.style.width=(ratio*100).toFixed(0)+'%';
   }
-  c.rot.textContent=p.rotQ;
-  c.qt.textContent=mins(p.onSecQ);
-  c.qp.textContent=pctQ(p);
+  // this quarter (prominent) + this game (totals) — time · rotations
+  c.qtime.textContent=mins(p.onSecQ)+'m';  c.qrot.textContent=p.rotQ+'↻';
+  c.gtime.textContent=mins(p.onSecG)+'m';  c.grot.textContent=p.rotG+'↻';
 }
 function paintAll(){
   P().forEach(p=>paintCard(p));
@@ -591,7 +498,6 @@ function renderControls(){
   if(G.phase==='full'){ q.textContent='FT'; }
   else if(G.phase==='break'){ q.textContent='Q'+G.qtr+' done'; clk.textContent='BREAK'; clk.className='clk brk'; }
   else { q.textContent='Q'+G.qtr; }
-  renderSpeed();
   setRotCounter();
   const pb=document.getElementById('primaryBtn'), eb=document.getElementById('endBtn');
   if(G.phase==='full'){ pb.textContent='Game over'; pb.disabled=true; eb.disabled=true; return; }
