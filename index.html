@@ -6,8 +6,8 @@
 <title>Game Day — Uni Blues</title>
 <style>
   :root{
-    --bg:#0b0f17; --panel:#121826; --panel2:#1a2030; --line:#283246;
-    --ink:#eef2f8; --dim:#8693a8;
+    --bg:#0c2340; --panel:#123157; --panel2:#17396a; --line:#2a4a78;
+    --ink:#f4f8fd; --dim:#a8bdda;
     --field:#15325a; --field2:#1b4078;
     --green:#37c46a; --amber:#f0b429; --red:#c0392b;
     --gold:#ecc24e;
@@ -97,9 +97,9 @@
   .cright{flex:1 1 0; display:grid; grid-template-columns:1fr 1fr; min-width:0}
   .shell{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:2px; min-width:0}
   .shell.shq{background:#eef2f8} .shell.shg{background:#e6ecf4; border-left:1px solid #ccd5e2}
-  .slab{font-family:var(--mono); font-size:.56rem; font-weight:800; letter-spacing:.06em; color:#8b96a4}
-  .stime{font-family:var(--mono); font-weight:800; font-size:1.45rem; line-height:1; color:#16212e}
-  .srot{font-family:var(--mono); font-weight:700; font-size:1.1rem; line-height:1; color:#3a4757}
+  .slab{font-family:var(--mono); font-size:.58rem; font-weight:800; letter-spacing:.06em; color:#5a6a7d}
+  .stime{font-family:var(--mono); font-weight:800; font-size:1.45rem; line-height:1; color:#101821}
+  .srot{font-family:var(--mono); font-weight:800; font-size:1.1rem; line-height:1; color:#243244}
   /* bench cards: resting tint; name keeps its position colour */
   .card.b{background:#eef3f9}
   .card.b .cprimary{background:#e2ebf7; color:#244a72}
@@ -305,15 +305,20 @@ function endQuarter(){
   );
 }
 function closeConfirm(){ document.getElementById('confirmBg').classList.remove('show'); }
+// tab-separated export -> proper CSV (quote any field holding a comma/quote/newline)
+function tsvToCsv(text){
+  const esc=c=>/[",\n]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c;
+  return text.split('\n').map(line=>line.split('\t').map(esc).join(',')).join('\n');
+}
 function autoBackupFile(label){
   try{
-    const txt=buildExportText();
+    const txt=tsvToCsv(buildExportText());
     const d=new Date();
     const stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
-    const blob=new Blob([txt],{type:'text/tab-separated-values'});
+    const blob=new Blob([txt],{type:'text/csv'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=`UniBlues_${label}_${stamp}.tsv`;
+    a.download=`UniBlues_${label}_${stamp}.csv`;
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }catch(e){ /* download blocked — autosave + manual export remain */ }
