@@ -70,20 +70,22 @@
   .hintbar b{color:var(--gold)}
 
   /* ---------- CARDS ---------- */
-  .card{background:#f4f7fb; color:#10151f; border-radius:9px; overflow:hidden; cursor:pointer; min-height:78px;
-    display:flex; flex-direction:row; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
-    border:1px solid rgba(0,0,0,.25); border-left:7px solid #888; box-shadow:0 2px 5px rgba(0,0,0,.4)}
+  .card{background:#f4f7fb; color:#10151f; border-radius:9px; overflow:hidden; cursor:pointer; min-height:80px;
+    display:flex; flex-direction:column; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+    border:1px solid rgba(0,0,0,.3); box-shadow:0 2px 6px rgba(0,0,0,.45)}
   .card > *{pointer-events:none}
   .card:active{transform:scale(.97)}
   .card.sel{outline:3px solid var(--gold); outline-offset:2px}
-  .card.L-FWD{border-left-color:#1f9d57} .card.L-DEF{border-left-color:#c0392b}
-  .card.L-MID{border-left-color:#d9a400} .card.L-WING{border-left-color:#1f86b8}
-  .card.L-RUCK{border-left-color:#8e44c8}
-  /* LEFT column: name over the big since-rotation time */
-  .cleft{flex:0 0 41%; display:flex; flex-direction:column; min-width:0; overflow:hidden}
-  .cname{font-weight:800; font-size:.82rem; letter-spacing:.01em; white-space:nowrap; overflow:hidden;
-    text-overflow:ellipsis; color:#0c1019; background:#dde4ee; padding:2px 7px; flex-shrink:0}
-  .cprimary{flex:1 1 auto; position:relative; display:flex; align-items:center; justify-content:center; padding:2px}
+  .card.injuring{outline:3px solid var(--red); outline-offset:2px; animation:pulseRed 1s ease-in-out infinite}
+  /* NAME — full-width header, coloured by position line, for maximum legibility */
+  .cname{font-weight:800; font-size:1.05rem; letter-spacing:.02em; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; padding:3px 9px; flex-shrink:0; color:#fff; background:#5a6470; line-height:1.25}
+  .card.L-FWD .cname{background:#1f9d57} .card.L-DEF .cname{background:#c0392b}
+  .card.L-MID .cname{background:#c99500; color:#1a1306} .card.L-WING .cname{background:#1f86b8}
+  .card.L-RUCK .cname{background:#8e44c8}
+  /* body: big since-rotation time (LEFT) · quarter & game shells (RIGHT) */
+  .cbody{display:flex; flex:1 1 auto; min-height:0}
+  .cprimary{flex:0 0 41%; position:relative; display:flex; align-items:center; justify-content:center; padding:2px}
   .ctval{font-family:var(--mono); font-weight:800; font-size:2rem; line-height:1; letter-spacing:.01em}
   .cprimary.g{background:#e7eef6; color:#1b2a3a}
   .cprimary.a{background:var(--amber); color:#231903}
@@ -98,9 +100,8 @@
   .slab{font-family:var(--mono); font-size:.56rem; font-weight:800; letter-spacing:.06em; color:#8b96a4}
   .stime{font-family:var(--mono); font-weight:800; font-size:1.45rem; line-height:1; color:#16212e}
   .srot{font-family:var(--mono); font-weight:700; font-size:1.1rem; line-height:1; color:#3a4757}
-  /* bench cards: resting tint, line colour (STARTING position) stays on the left bar */
+  /* bench cards: resting tint; name keeps its position colour */
   .card.b{background:#eef3f9}
-  .card.b .cname{background:#d4def0}
   .card.b .cprimary{background:#e2ebf7; color:#244a72}
   .card.b .cbar{display:none}
   .card.b .shell.shq{background:#e8eef6} .card.b .shell.shg{background:#e0e8f2}
@@ -113,8 +114,8 @@
     text-align:center; cursor:pointer; background:rgba(192,57,43,.07)}
   .injhead:active{transform:scale(.98)}
   .injstack{margin-top:6px}
-  .card.inj{opacity:.6; filter:grayscale(.55)}
-  .card.inj .cname{background:#c9ccd2} .card.inj .cprimary{background:#3b4048; color:#e8bdb7}
+  .card.inj{opacity:.62; filter:grayscale(.5)}
+  .card.inj .cname{background:#6b7480; color:#fff} .card.inj .cprimary{background:#3b4048; color:#e8bdb7}
 
   /* ---------- EXPORT MODAL ---------- */
   .modal-bg{position:fixed; inset:0; background:rgba(6,9,14,.72); display:none; align-items:center; justify-content:center; z-index:60; padding:18px}
@@ -244,7 +245,7 @@ let SQUAD=parseCSV(CSV_TEXT);
 let G, timer=null, cardEls={}, lastSec=-1;
 function init(){
   G={qtr:1, sec:0, running:false, speed:1, phase:'live',
-     rotTot:0, qRot:{1:0,2:0,3:0,4:0}, sel:null, log:[], events:[], players:{},
+     rotTot:0, qRot:{1:0,2:0,3:0,4:0}, sel:null, injuring:null, log:[], events:[], players:{},
      qtimes:{1:{},2:{},3:{},4:{}}};
   let si=0;
   SQUAD.forEach(p=>{
@@ -343,6 +344,12 @@ function startQuarter(){
    Tap the selected player again to cancel. Selection is a class toggle only. */
 function clickCard(name){
   const p=G.players[name];
+  if(G.injuring){                                 // an on-field injury is waiting for its replacement
+    const x=G.players[G.injuring];
+    if(name===G.injuring){ cancelInjury(); return; }
+    if(p.loc==='bench'){ completeInjury(x,p); return; }
+    flashHint('Tap an interchange player to come on for '+x.n+', or tap '+x.n+' to cancel.'); return;
+  }
   if(p.loc==='injured'){ recover(p); return; }   // tap an injured card to return them to the bench
   if(!G.sel){ setSel(name); return; }
   if(G.sel===name){ setSel(null); return; }
@@ -372,16 +379,36 @@ function swapPositions(a,b){
 }
 function logLine(cls, txt){ G.log.unshift({cls,txt}); }
 function flashHint(msg){ const h=document.getElementById('hint'); if(h){ h.innerHTML='<b>'+msg+'</b>'; } }
-/* ---------- INJURED SHELF (timers paused; excluded from advance) ---------- */
+/* ---------- INJURED SHELF (timers paused; excluded from advance) ----------
+   On-field injuries must keep 18 on the pitch, so they pair with a replacement:
+   select the hurt player → tap the Injured bar → tap the interchange sub coming on.
+   Bench injuries need no replacement and simply shrink the interchange. */
 function injureSelected(){
+  if(G.injuring){ cancelInjury(); return; }               // second tap on the bar cancels
   if(!G.sel){ flashHint('Select a player first, then tap the Injured bar to sideline them.'); return; }
   const p=G.players[G.sel];
   if(p.loc==='injured'){ setSel(null); return; }
-  if(p.loc==='on') G.events.push({player:p.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"OFF", pos:p.curPos});
-  p.loc='injured';   // stint/quarter/game clocks freeze — advance() only ticks on & bench
-  logLine('brk', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${p.n} sidelined (injured) — timers paused`);
+  if(p.loc==='bench'){                                     // no replacement needed
+    p.loc='injured';
+    logLine('brk', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${p.n} sidelined (injured, from bench) — timers paused`);
+    setSel(null); buildField(); paintAll(); renderControls(); saveState(); return;
+  }
+  // on-field: arm the injury and wait for the sub coming on so 18 is maintained
+  G.injuring=p.n; setSel(null); buildField(); paintAll(); renderControls();
+  flashHint(p.n+' injured — tap the interchange player coming on to keep 18 on the pitch. Tap '+p.n+' or the Injured bar to cancel.');
+  saveState();
+}
+function completeInjury(x, y){
+  const pos=x.curPos;
+  x.loc='injured';                                         // timers freeze
+  G.events.push({player:x.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"OFF", pos});
+  y.loc='on'; y.curPos=pos; y.stintSec=0;                  // sub takes the vacated position
+  G.events.push({player:y.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"ON", pos});
+  G.injuring=null;
+  logLine('brk', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${x.n} injured off (${pos}) · ${y.n} on — 18 maintained`);
   setSel(null); buildField(); paintAll(); renderControls(); saveState();
 }
+function cancelInjury(){ G.injuring=null; buildField(); paintAll(); renderControls(); flashHint('Injury cancelled.'); saveState(); }
 function recover(p){
   p.loc='bench'; p.stintSec=0;   // back to the interchange, stint clock restarts
   logLine('rest', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${p.n} recovered → interchange (clock reset)`);
@@ -404,15 +431,15 @@ function makeCard(p,where){
   const line=lineCls(where==='field'?p.curPos:p.pos);
   const kind=where==='bench'?'b ':(where==='injured'?'b inj ':'');
   const root=document.createElement('div');
-  root.className=('card '+kind+line+(G.sel===p.n?' sel':'')).trim();
+  root.className=('card '+kind+line+(G.sel===p.n?' sel':'')+(G.injuring===p.n?' injuring':'')).trim();
   root.innerHTML=
-    `<div class="cleft">`+
-      `<div class="cname">${p.n}</div>`+
+    `<div class="cname">${p.n}</div>`+
+    `<div class="cbody">`+
       `<div class="cprimary"><span class="ctval"></span><div class="cbar"><i></i></div></div>`+
-    `</div>`+
-    `<div class="cright">`+
-      `<div class="shell shq"><span class="slab">QTR</span><span class="stime qtime"></span><span class="srot qrot"></span></div>`+
-      `<div class="shell shg"><span class="slab">GAME</span><span class="stime gtime"></span><span class="srot grot"></span></div>`+
+      `<div class="cright">`+
+        `<div class="shell shq"><span class="slab">QTR</span><span class="stime qtime"></span><span class="srot qrot"></span></div>`+
+        `<div class="shell shg"><span class="slab">GAME</span><span class="stime gtime"></span><span class="srot grot"></span></div>`+
+      `</div>`+
     `</div>`;
   root.onclick=()=>clickCard(p.n);
   cardEls[p.n]={root,
