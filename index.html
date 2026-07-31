@@ -117,7 +117,8 @@
   .gtbody .gtrow:nth-child(odd){background:rgba(255,255,255,.045)}
   .gtbody .gtrow:nth-child(even){background:rgba(255,255,255,.11)}
   .gthrow{position:sticky; top:0; z-index:1; background:var(--panel2); border-bottom:2px solid var(--gold)}
-  .gthrow > span{color:var(--gold); font-weight:800; font-size:.62rem; text-transform:uppercase; letter-spacing:.04em}
+  .gthrow > span{color:var(--gold); font-weight:800; font-size:.62rem; text-transform:uppercase; letter-spacing:.04em; cursor:pointer; user-select:none}
+  .gthrow > span:active{opacity:.6}
   .gtn{color:var(--ink); font-weight:700; font-size:.94rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:8px}
   .gtm{color:var(--ink); font-weight:800; font-size:1.1rem; text-align:center; border-left:1px solid rgba(255,255,255,.12)}
   .gtr{color:var(--gold); font-weight:800; font-size:1.1rem; text-align:center; border-left:1px solid rgba(255,255,255,.12)}
@@ -163,10 +164,10 @@
 <div class="modal-bg" id="confirmBg">
   <div class="modal" style="max-width:420px; text-align:center">
     <h3 id="confirmTitle">End quarter?</h3>
-    <p id="confirmMsg" style="margin-bottom:1rem"></p>
+    <p id="confirmMsg" style="margin-bottom:1rem; white-space:pre-line"></p>
     <div class="row" style="justify-content:center">
       <button class="btn-red" id="confirmYes">Yes, end quarter</button>
-      <button onclick="closeConfirm()">Cancel</button>
+      <button id="confirmNo">Cancel</button>
     </div>
   </div>
 </div>
@@ -266,6 +267,19 @@ function parseCSV(text){
 let SQUAD=parseCSV(CSV_TEXT);
 
 let G, timer=null, cardEls={}, totalEls={}, lastSec=-1;
+let totSort={key:'name', dir:'asc'};   // game-totals table sort — UI-only, not saved/exported
+function setTotSort(key){
+  if(totSort.key===key){ totSort.dir = totSort.dir==='asc'?'desc':'asc'; }
+  else{ totSort={key, dir: key==='name'?'asc':'desc'}; }   // numeric columns default highest-first
+  buildField();
+}
+function sortedTotals(){
+  const {key,dir}=totSort, mul=dir==='asc'?1:-1;
+  return P().slice().sort((a,b)=>{
+    const v = key==='name' ? a.n.localeCompare(b.n) : key==='min' ? a.onSecG-b.onSecG : a.rotG-b.rotG;
+    return v*mul;
+  });
+}
 function init(){
   G={qtr:1, sec:0, running:false, speed:1, phase:'live',
      rotTot:0, qRot:{1:0,2:0,3:0,4:0}, sel:null, injuring:null, log:[], events:[], players:{},
@@ -309,12 +323,16 @@ function advance(dSec){
   tickLive();
   if(G.sec-lastSaveSec>=5){ saveState(); lastSaveSec=G.sec; }
 }
-function askConfirm(title, msg, yesLabel, onYes){
+function askConfirm(title, msg, yesLabel, onYes, opts){
+  opts=opts||{};
   document.getElementById('confirmTitle').textContent = title;
   document.getElementById('confirmMsg').textContent = msg;
   const yes=document.getElementById('confirmYes');
   yes.textContent = yesLabel;
   yes.onclick=()=>{ closeConfirm(); onYes(); };
+  const no=document.getElementById('confirmNo');
+  no.textContent = opts.noLabel || 'Cancel';
+  no.onclick=()=>{ closeConfirm(); if(opts.onNo) opts.onNo(); };
   document.getElementById('confirmBg').classList.add('show');
 }
 function endQuarter(){
@@ -464,7 +482,7 @@ function makeCard(p,where){
     `<div class="cbody">`+
       `<div class="cprimary"><span class="ctval"></span></div>`+
       `<div class="cright">`+
-        `<div class="shell shq"><span class="slab">QTR</span><span class="stime qtime"></span><span class="srot qrot"></span></div>`+
+        `<div class="shell shq"><span class="slab">QTR</span><span class="stime qrot"></span><span class="srot qtime"></span></div>`+
       `</div>`+
     `</div>`;
   root.onclick=()=>clickCard(p.n);
@@ -530,8 +548,12 @@ function buildField(){
   const gt=document.createElement('div'); gt.className='gtotals';
   const gth=document.createElement('div'); gth.className='gthead'; gth.textContent='Game totals'; gt.appendChild(gth);
   const body=document.createElement('div'); body.className='gtbody'; body.id='gtbody';
-  body.innerHTML=`<div class="gtrow gthrow"><span class="gtn">Player</span><span class="gtm">Min</span><span class="gtr">↻</span></div>`;
-  P().slice().sort((a,b)=>a.n.localeCompare(b.n)).forEach(p=>{
+  const arrow=k=>totSort.key===k?(totSort.dir==='asc'?' ▲':' ▼'):'';
+  const hdrow=document.createElement('div'); hdrow.className='gtrow gthrow';
+  hdrow.innerHTML=`<span class="gtn" data-k="name">Player${arrow('name')}</span><span class="gtm" data-k="min">Min${arrow('min')}</span><span class="gtr" data-k="rot">↻${arrow('rot')}</span>`;
+  hdrow.querySelectorAll('[data-k]').forEach(el=>{ el.onclick=()=>setTotSort(el.dataset.k); });
+  body.appendChild(hdrow);
+  sortedTotals().forEach(p=>{
     const row=document.createElement('div'); row.className='gtrow';
     row.innerHTML=`<span class="gtn">${p.n}</span><span class="gtm"></span><span class="gtr"></span>`;
     totalEls[p.n]={m:row.querySelector('.gtm'), r:row.querySelector('.gtr')};
@@ -634,6 +656,8 @@ function buildExportText(){
     if(e.dir==='OFF'){
       const on=evts.find((x,j)=>j>i&&x.dir==='ON'&&x.q===e.q&&x.pos===e.pos&&Math.abs(x.sec-e.sec)<1);
       out += `Q${e.q}\t${mmss(e.sec)}\t${hhmm(e.wall)}\t${e.player}\t${on?on.player:'—'}\t${e.pos}\n`;
+    } else if(e.dir==='GAP'){
+      out += `Q${e.q}\t${mmss(e.sec)}\t${hhmm(e.wall)}\t⚠ SESSION GAP\t${mmss(e.gapSec)} untracked\tautosave from ${hhmm(e.savedAt)}\n`;
     }
   }
 
@@ -681,27 +705,43 @@ function readSave(key){
   if(!saved || !saved.G || !saved.G.players) return null;
   return saved;
 }
+function logSessionGap(savedAt){
+  const gapSec=Math.max(0,(Date.now()-savedAt)/1000);
+  G.events.push({q:G.qtr, sec:G.sec, wall:Date.now(), dir:'GAP', savedAt, gapSec});
+  logLine('brk', `⚠ Session resumed — ${mmss(gapSec)} untracked since last autosave (${new Date(savedAt).toLocaleTimeString()})`);
+  renderLog();
+}
 function tryRestore(){
   const saved = readSave(STORAGE_KEY) || readSave(BACKUP_KEY);
-  if(!saved) return false;
+  if(!saved){ init(); return; }
   const g=saved.G;
   const when=new Date(saved.savedAt).toLocaleString();
   const desc=(g.phase==='full'?'Full time':'Q'+g.qtr+' '+mmss(g.sec))+', '+g.rotTot+' rotations logged';
   // NOTE: declining does NOT delete the save — it is kept until explicitly overwritten.
-  if(!confirm(`Resume autosaved game from ${when}?\n${desc}\n\nCancel starts a fresh game. The saved game is KEPT and can be recovered.`)){
-    return false;
-  }
-  G=g; G.running=false; cardEls={};
-  buildField(); paintAll(); renderLog(); renderControls();
-  const clk=document.getElementById('clk');
-  clk.textContent=mmss(G.sec);
-  clk.className='clk'+((G.sec>=QLEN*60 && G.phase==='live')?' over':'');
-  return true;
+  askConfirm(
+    'Resume autosaved game?',
+    `${desc}, saved ${when}.\n\nThe saved game is always kept on this device either way.\n\n`+
+    `⚠ "Start fresh" abandons everything tracked since that save — every rotation, all on-field time and the log for the game currently in progress will NOT appear in your next export unless you come back and resume this save later.`,
+    'Resume game',
+    ()=>{
+      G=g; G.running=false; cardEls={};
+      buildField(); paintAll(); renderLog(); renderControls();
+      const clk=document.getElementById('clk');
+      clk.textContent=mmss(G.sec);
+      clk.className='clk'+((G.sec>=QLEN*60 && G.phase==='live')?' over':'');
+      logSessionGap(saved.savedAt);
+    },
+    { noLabel:'Start fresh (lose autosave)', onNo:()=>{
+      init();
+      logLine('brk', `⚠ An autosave from ${when} (${desc}) was available but not resumed.`);
+      renderLog();
+    } }
+  );
 }
 window.addEventListener('beforeunload', function(e){
   if(gameInProgress()){ e.preventDefault(); e.returnValue=''; }
 });
-if(!tryRestore()) init();
+tryRestore();
 </script>
 </body>
 </html>
