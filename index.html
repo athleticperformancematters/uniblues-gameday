@@ -518,18 +518,53 @@ function makeColumn(head, sections){
   });
   return col;
 }
+// per-column game totals — every player currently tagged to this column (by curPos, so it
+// follows a player if they get swapped into a different line mid-game), in the shared sort
+// order (tap any table's header to sort all three by name/min/rotations)
+function makeTotalsTable(id, players){
+  const gt=document.createElement('div'); gt.className='gtotals';
+  const gth=document.createElement('div'); gth.className='gthead'; gth.textContent='Game totals'; gt.appendChild(gth);
+  const body=document.createElement('div'); body.className='gtbody'; body.id=id;
+  const arrow=k=>totSort.key===k?(totSort.dir==='asc'?' ▲':' ▼'):'';
+  const hdrow=document.createElement('div'); hdrow.className='gtrow gthrow';
+  hdrow.innerHTML=`<span class="gtn" data-k="name">Player${arrow('name')}</span><span class="gtm" data-k="min">Min${arrow('min')}</span><span class="gtr" data-k="rot">↻${arrow('rot')}</span>`;
+  hdrow.querySelectorAll('[data-k]').forEach(el=>{ el.onclick=()=>setTotSort(el.dataset.k); });
+  body.appendChild(hdrow);
+  players.forEach(p=>{
+    const row=document.createElement('div'); row.className='gtrow';
+    row.innerHTML=`<span class="gtn">${p.n}</span><span class="gtm"></span><span class="gtr"></span>`;
+    totalEls[p.n]={m:row.querySelector('.gtm'), r:row.querySelector('.gtr')};
+    body.appendChild(row);
+  });
+  gt.appendChild(body);
+  return gt;
+}
 function buildField(){
-  const prevTotScroll=(document.getElementById('gtbody')||{}).scrollTop||0;   // keep totals scroll across rebuilds
+  // keep each column's totals-table scroll position across rebuilds
+  const totIds=['gtbody-fwd','gtbody-mid','gtbody-back'];
+  const prevTotScroll={};
+  totIds.forEach(id=>{ prevTotScroll[id]=(document.getElementById(id)||{}).scrollTop||0; });
   cardEls={}; totalEls={};
   const c=fieldColumns();
   const board=document.getElementById('board'); board.innerHTML='';
 
-  board.appendChild(makeColumn('Forwards', [
-    {label:'Forwards', cards:c.fwdOther}, {label:'Key', cards:c.fwdKey}]));
-  board.appendChild(makeColumn('Mids / Ruck · Wing', [
-    {label:'Mids', cards:c.mids}, {label:'Ruck · Wing', cards:c.ruckWing}]));
-  board.appendChild(makeColumn('Backs', [
-    {label:'Backs', cards:c.backOther}, {label:'Key', cards:c.backKey}]));
+  const totSorted=sortedTotals();
+  const byCol=(...ps)=>totSorted.filter(p=>ps.includes(p.curPos));
+
+  const fwdCol=makeColumn('Forwards', [
+    {label:'Forwards', cards:c.fwdOther}, {label:'Key', cards:c.fwdKey}]);
+  fwdCol.appendChild(makeTotalsTable('gtbody-fwd', byCol('HF','FF')));
+  board.appendChild(fwdCol);
+
+  const midCol=makeColumn('Mids / Ruck · Wing', [
+    {label:'Mids', cards:c.mids}, {label:'Ruck · Wing', cards:c.ruckWing}]);
+  midCol.appendChild(makeTotalsTable('gtbody-mid', byCol('M','Ruckman','W')));
+  board.appendChild(midCol);
+
+  const backCol=makeColumn('Backs', [
+    {label:'Backs', cards:c.backOther}, {label:'Key', cards:c.backKey}]);
+  backCol.appendChild(makeTotalsTable('gtbody-back', byCol('FB','HB')));
+  board.appendChild(backCol);
 
   const ic=document.createElement('div'); ic.className='boardcol';
   const ih=document.createElement('div'); ih.className='colhead'; ih.textContent='Interchange'; ic.appendChild(ih);
@@ -544,24 +579,9 @@ function buildField(){
   const istack=document.createElement('div'); istack.className='stack injstack';
   inj().forEach(p=>istack.appendChild(makeCard(p,'injured')));
   ic.appendChild(istack);
-  // game totals — every player, alphabetical, scrollable: minutes + rotations so far
-  const gt=document.createElement('div'); gt.className='gtotals';
-  const gth=document.createElement('div'); gth.className='gthead'; gth.textContent='Game totals'; gt.appendChild(gth);
-  const body=document.createElement('div'); body.className='gtbody'; body.id='gtbody';
-  const arrow=k=>totSort.key===k?(totSort.dir==='asc'?' ▲':' ▼'):'';
-  const hdrow=document.createElement('div'); hdrow.className='gtrow gthrow';
-  hdrow.innerHTML=`<span class="gtn" data-k="name">Player${arrow('name')}</span><span class="gtm" data-k="min">Min${arrow('min')}</span><span class="gtr" data-k="rot">↻${arrow('rot')}</span>`;
-  hdrow.querySelectorAll('[data-k]').forEach(el=>{ el.onclick=()=>setTotSort(el.dataset.k); });
-  body.appendChild(hdrow);
-  sortedTotals().forEach(p=>{
-    const row=document.createElement('div'); row.className='gtrow';
-    row.innerHTML=`<span class="gtn">${p.n}</span><span class="gtm"></span><span class="gtr"></span>`;
-    totalEls[p.n]={m:row.querySelector('.gtm'), r:row.querySelector('.gtr')};
-    body.appendChild(row);
-  });
-  gt.appendChild(body); ic.appendChild(gt);
   board.appendChild(ic);
-  const gtb=document.getElementById('gtbody'); if(gtb) gtb.scrollTop=prevTotScroll;
+
+  totIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.scrollTop=prevTotScroll[id]; });
   paintTotals();
   renderHint();
 }
