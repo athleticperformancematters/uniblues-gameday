@@ -298,6 +298,10 @@ const P=()=>Object.values(G.players);
 const onF=()=>P().filter(p=>p.loc==='on');
 const bn=()=>P().filter(p=>p.loc==='bench');
 const inj=()=>P().filter(p=>p.loc==='injured');
+/* a rotation only counts while a quarter is actually under way. Interchange changes
+   made pre-game, at a break or after the final siren still swap the players and are
+   still logged, but they never touch the rotation counters. */
+const inQuarter=()=>G.phase==='live' && !!(G.qtimes[G.qtr]||{}).start;
 function benchSorted(){ return bn().slice().sort((a,b)=>{
   const la=(LINE_RANK[LINE_OF[a.pos]]??9), lb=(LINE_RANK[LINE_OF[b.pos]]??9);
   if(la!==lb) return la-lb;
@@ -409,14 +413,19 @@ function setSel(name){ G.sel=name;
 function rotate(onP, benchP){
   const vac=onP.curPos; let note='';
   if(vac==='Ruckman' && !['FB','FF'].includes(benchP.pos)) note=' ⚠ ruck cover not FF/FB';
-  const t=onP.rotMin; const ratio=t?onP.stintSec/60/t:0; const late=ratio>=1;
-  onP.loc='bench'; onP.stintSec=0; onP.rotQ++; onP.rotG++; onP.qRot[G.qtr]=(onP.qRot[G.qtr]||0)+1;
-  G.events.push({player:onP.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"OFF", pos:vac});
+  const counts=inQuarter();
+  const t=onP.rotMin; const ratio=t?onP.stintSec/60/t:0; const late=counts&&ratio>=1;
+  onP.loc='bench'; onP.stintSec=0;
+  if(counts){ onP.rotQ++; onP.rotG++; onP.qRot[G.qtr]=(onP.qRot[G.qtr]||0)+1; }
+  G.events.push({player:onP.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"OFF", pos:vac, counted:counts});
   benchP.loc='on'; benchP.curPos=vac; benchP.stintSec=0;
-  G.events.push({player:benchP.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"ON", pos:vac});
-  G.rotTot++; G.qRot[G.qtr]++;
-  setRotCounter();                       // live top-of-screen update
-  logLine(late?'late':'rest', `<span class="t">Q${G.qtr} ${mmss(G.sec)}</span> · ${onP.n} OFF (${vac}${late?', LATE '+ratio.toFixed(2):''}) · ${benchP.n} ON${note}`);
+  G.events.push({player:benchP.n, q:G.qtr, sec:G.sec, wall:Date.now(), dir:"ON", pos:vac, counted:counts});
+  if(counts){ G.rotTot++; G.qRot[G.qtr]++; setRotCounter(); }   // live top-of-screen update
+  const when = counts ? `Q${G.qtr} ${mmss(G.sec)}`
+             : G.phase==='full' ? 'after full time'
+             : G.phase==='break' ? `Q${G.qtr} break`
+             : 'pre-game';
+  logLine(late?'late':'rest', `<span class="t">${when}</span> · ${onP.n} OFF (${vac}${late?', LATE '+ratio.toFixed(2):''}) · ${benchP.n} ON${note}${counts?'':' · not counted'}`);
 }
 function swapPositions(a,b){
   const pa=a.curPos, pb=b.curPos; a.curPos=pb; b.curPos=pa;
@@ -675,7 +684,7 @@ function buildExportText(){
     const e=evts[i];
     if(e.dir==='OFF'){
       const on=evts.find((x,j)=>j>i&&x.dir==='ON'&&x.q===e.q&&x.pos===e.pos&&Math.abs(x.sec-e.sec)<1);
-      out += `Q${e.q}\t${mmss(e.sec)}\t${hhmm(e.wall)}\t${e.player}\t${on?on.player:'—'}\t${e.pos}\n`;
+      out += `Q${e.q}\t${mmss(e.sec)}\t${hhmm(e.wall)}\t${e.player}\t${on?on.player:'—'}\t${e.pos}${e.counted===false?' (not counted)':''}\n`;
     } else if(e.dir==='GAP'){
       out += `Q${e.q}\t${mmss(e.sec)}\t${hhmm(e.wall)}\t⚠ SESSION GAP\t${mmss(e.gapSec)} untracked\tautosave from ${hhmm(e.savedAt)}\n`;
     }
